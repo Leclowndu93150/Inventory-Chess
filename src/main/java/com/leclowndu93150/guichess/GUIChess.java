@@ -47,10 +47,10 @@ public class GUIChess {
 
     //TODO when player dies while a match is going it will flicker between the respawn screen and the chess match
     //TODO: WHY THE FUCK CAN WE EAT THE KING ? We just need to checkmate
-    //TODO: improve the SquareGenerator to take all the textures necessary and the background. make new ones (red but kinda cream red you get me ?), make quares for last moved, make squared for valid moves. and then overlay those for each available chess piece. also update the datagen to reflect those changes. btw each chess piece is 16x16 (just in case)
+    //TODO: improve the SquareGenerator to take all the textures necessary and the background. make new ones (red but kinda cream red you get me ?), make quares for last moved, make squared for valid moves. and then overlay those for each available chess piece. also update the datagen to reflect those changes (and also the enum). btw each chess piece is 16x16 (just in case)
     //TODO: even tho i chose a mode it always defaults to blitz 5 min
-    //TODO: add a mode to randomize the side
-    //TODO: add warning when 1 min left, 10s left (on modes where there is a lot of time)
-    //TODO: Valid move textures (for empty slots) is available at
+    //TODO: add a mode to randomize the side when challenging sometone
+    //TODO: add warning when 1 min left, 10s left (on modes where there is a lot of time) (in chat message with a sound probably)
+    //TODO: Valid move textures (for empty slots) is available at guichess/board/valid_(color)_square.png
     //TODO: after match ended update the client inventory again otherwise the pieces are still there
 }
