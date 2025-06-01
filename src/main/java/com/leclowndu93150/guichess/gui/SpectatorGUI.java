@@ -3,7 +3,6 @@ package com.leclowndu93150.guichess.gui;
 import com.leclowndu93150.guichess.chess.pieces.PieceColor;
 import com.leclowndu93150.guichess.game.ChessGame;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
@@ -20,17 +19,18 @@ public class SpectatorGUI extends ChessGUI {
         super.setupUtilitySlots();
 
         // Override some buttons for spectator mode
-        setSlot(51, new GuiElementBuilder(Items.BARRIER)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§7Spectator Mode"))
-                .setCallback((slot, type, action, gui) -> {
+        setSlot(62, new GuiElementBuilder(Items.BARRIER)
+                .setName(Component.literal("§7Spectator Mode"))
+                .setCallback((index, type, action, gui) -> {
                     player.sendSystemMessage(Component.literal("§7You are spectating this game"));
                 }));
 
-        setSlot(52, new GuiElementBuilder(Items.COMPASS)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§9Switch Perspective"))
-                .setCallback((slot, type, action, gui) -> {
+        setSlot(17, new GuiElementBuilder(Items.COMPASS)
+                .setName(Component.literal("§9Switch Perspective"))
+                .setCallback((index, type, action, gui) -> {
                     // Toggle perspective between white/black
                     // Implementation would flip the board view
+                    player.sendSystemMessage(Component.literal("§9Perspective switching not yet implemented"));
                 }));
     }
 }

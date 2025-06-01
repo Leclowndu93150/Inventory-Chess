@@ -23,7 +23,9 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @EventBusSubscriber
 public class ChessCommands {
@@ -33,6 +35,14 @@ public class ChessCommands {
                     Arrays.stream(TimeControl.values()).map(tc -> tc.name().toLowerCase()),
                     builder
             );
+
+    private static final SuggestionProvider<CommandSourceStack> ONLINE_PLAYER_SUGGESTIONS =
+            (context, builder) -> SharedSuggestionProvider.suggest(
+                    context.getSource().getServer().getPlayerList().getPlayers().stream()
+                            .map(p -> p.getName().getString()),
+                    builder
+            );
+
 
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
@@ -68,11 +78,13 @@ public class ChessCommands {
 
                         .then(Commands.literal("spectate")
                                 .then(Commands.argument("player", EntityArgument.player())
+                                        .suggests(ONLINE_PLAYER_SUGGESTIONS)
                                         .executes(ChessCommands::spectateGame)))
 
                         .then(Commands.literal("stats")
                                 .executes(ChessCommands::showOwnStats)
                                 .then(Commands.argument("player", EntityArgument.player())
+                                        .suggests(ONLINE_PLAYER_SUGGESTIONS)
                                         .executes(ChessCommands::showPlayerStats)))
 
                         .then(Commands.literal("leaderboard")
@@ -104,8 +116,11 @@ public class ChessCommands {
                                 .then(Commands.literal("setelo")
                                         .then(Commands.argument("player", EntityArgument.player())
                                                 .then(Commands.argument("elo", StringArgumentType.string())
-                                                        .executes(ChessCommands::setPlayerELO)))))
-        );
+                                                        .executes(ChessCommands::setPlayerELO))))
+                                .then(Commands.literal("unbusy")
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .suggests(ONLINE_PLAYER_SUGGESTIONS)
+                                                .executes(ChessCommands::adminUnbusyPlayer)))));
     }
 
     private static int createGame(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -137,11 +152,11 @@ public class ChessCommands {
         try {
             timeControl = TimeControl.valueOf(timeControlName.toUpperCase());
         } catch (IllegalArgumentException e) {
-            context.getSource().sendFailure(Component.literal("§cInvalid time control: " + timeControlName));
+            context.getSource().sendFailure(Component.literal("§cInvalid time control: " + timeControlName + ". Valid: " +
+                    Arrays.stream(TimeControl.values()).map(tc -> tc.name().toLowerCase()).collect(Collectors.joining(", "))));
             return 0;
         }
 
-        // For direct play command, skip challenge and create game immediately
         ChessGame game = gameManager.createGame(player, opponent, timeControl);
 
         player.sendSystemMessage(Component.literal("§aGame started against " + opponent.getName().getString() + " (" + timeControl.displayName + ")"));
@@ -179,13 +194,14 @@ public class ChessCommands {
         try {
             timeControl = TimeControl.valueOf(timeControlName.toUpperCase());
         } catch (IllegalArgumentException e) {
-            context.getSource().sendFailure(Component.literal("§cInvalid time control: " + timeControlName));
+            context.getSource().sendFailure(Component.literal("§cInvalid time control: " + timeControlName + ". Valid: " +
+                    Arrays.stream(TimeControl.values()).map(tc -> tc.name().toLowerCase()).collect(Collectors.joining(", "))));
             return 0;
         }
 
         ChessChallenge challenge = gameManager.createChallenge(challenger, challenged, timeControl);
         if (challenge == null) {
-            context.getSource().sendFailure(Component.literal("§cFailed to create challenge!"));
+            context.getSource().sendFailure(Component.literal("§cFailed to create challenge (player might have become busy)!"));
             return 0;
         }
 
@@ -198,22 +214,21 @@ public class ChessCommands {
         ServerPlayer player = context.getSource().getPlayerOrException();
         GameManager gameManager = GameManager.getInstance();
 
-        // Find the most recent challenge for this player
-        ChessChallenge challenge = gameManager.getPendingChallenges().values().stream()
+        ChessChallenge challengeToAccept = gameManager.getPendingChallenges().values().stream()
                 .filter(c -> c.challenged.equals(player) && !c.isExpired())
-                .max((c1, c2) -> Long.compare(c1.challengeTime, c2.challengeTime))
+                .max(Comparator.comparingLong(c -> c.challengeTime))
                 .orElse(null);
 
-        if (challenge == null) {
-            context.getSource().sendFailure(Component.literal("§cYou have no pending challenges!"));
+        if (challengeToAccept == null) {
+            context.getSource().sendFailure(Component.literal("§cYou have no pending challenges or the most recent one expired!"));
             return 0;
         }
 
-        if (gameManager.acceptChallenge(player, challenge.challengeId)) {
-            context.getSource().sendSuccess(() -> Component.literal("§aChallenge accepted!"), false);
+        if (gameManager.acceptChallenge(player, challengeToAccept.challengeId)) {
+            // Message is sent by GameManager.acceptChallenge now
             return 1;
         } else {
-            context.getSource().sendFailure(Component.literal("§cFailed to accept challenge!"));
+            context.getSource().sendFailure(Component.literal("§cFailed to accept challenge. The challenger might be busy or the challenge expired."));
             return 0;
         }
     }
@@ -222,22 +237,21 @@ public class ChessCommands {
         ServerPlayer player = context.getSource().getPlayerOrException();
         GameManager gameManager = GameManager.getInstance();
 
-        // Find the most recent challenge for this player
-        ChessChallenge challenge = gameManager.getPendingChallenges().values().stream()
+        ChessChallenge challengeToDecline = gameManager.getPendingChallenges().values().stream()
                 .filter(c -> c.challenged.equals(player) && !c.isExpired())
-                .max((c1, c2) -> Long.compare(c1.challengeTime, c2.challengeTime))
+                .max(Comparator.comparingLong(c -> c.challengeTime))
                 .orElse(null);
 
-        if (challenge == null) {
-            context.getSource().sendFailure(Component.literal("§cYou have no pending challenges!"));
+        if (challengeToDecline == null) {
+            context.getSource().sendFailure(Component.literal("§cYou have no pending challenges to decline!"));
             return 0;
         }
 
-        if (gameManager.declineChallenge(player, challenge.challengeId)) {
-            context.getSource().sendSuccess(() -> Component.literal("§cChallenge declined!"), false);
+        if (gameManager.declineChallenge(player, challengeToDecline.challengeId)) {
+            // Message is sent by GameManager.declineChallenge
             return 1;
         } else {
-            context.getSource().sendFailure(Component.literal("§cFailed to decline challenge!"));
+            context.getSource().sendFailure(Component.literal("§cFailed to decline challenge."));
             return 0;
         }
     }
@@ -246,8 +260,8 @@ public class ChessCommands {
         ServerPlayer player = context.getSource().getPlayerOrException();
         ChessGame game = GameManager.getInstance().getPlayerGame(player);
 
-        if (game == null) {
-            context.getSource().sendFailure(Component.literal("§cYou are not in a game!"));
+        if (game == null || !game.isGameActive()) {
+            context.getSource().sendFailure(Component.literal("§cYou are not in an active game!"));
             return 0;
         }
 
@@ -255,7 +269,7 @@ public class ChessCommands {
             context.getSource().sendSuccess(() -> Component.literal("§cYou resigned the game!"), false);
             return 1;
         } else {
-            context.getSource().sendFailure(Component.literal("§cFailed to resign!"));
+            context.getSource().sendFailure(Component.literal("§cFailed to resign (game might have just ended)."));
             return 0;
         }
     }
@@ -264,22 +278,31 @@ public class ChessCommands {
         ServerPlayer player = context.getSource().getPlayerOrException();
         ChessGame game = GameManager.getInstance().getPlayerGame(player);
 
-        if (game == null) {
-            context.getSource().sendFailure(Component.literal("§cYou are not in a game!"));
+        if (game == null || !game.isGameActive()) {
+            context.getSource().sendFailure(Component.literal("§cYou are not in an active game!"));
             return 0;
         }
 
+        if (game.isDrawOffered() && game.getDrawOfferer().equals(player)) {
+            context.getSource().sendFailure(Component.literal("§eYou have already offered a draw. /chess draw cancel to cancel."));
+            return 0;
+        } else if (game.isDrawOffered() && !game.getDrawOfferer().equals(player)) {
+            context.getSource().sendFailure(Component.literal("§eYour opponent has offered a draw. Use /chess accept or /chess decline."));
+            return 0;
+        }
+
+
         if (game.offerDraw(player)) {
-            context.getSource().sendSuccess(() -> Component.literal("§eDraw offer sent!"), false);
+            // Message handled by game.offerDraw
             return 1;
         } else {
-            context.getSource().sendFailure(Component.literal("§cFailed to offer draw!"));
+            context.getSource().sendFailure(Component.literal("§cFailed to offer draw (e.g., already offered, or game state issues)."));
             return 0;
         }
     }
 
     private static int spectateGame(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer player = context.getSource().getPlayerOrException();
+        ServerPlayer spectator = context.getSource().getPlayerOrException();
         ServerPlayer target = EntityArgument.getPlayer(context, "player");
 
         ChessGame game = GameManager.getInstance().getPlayerGame(target);
@@ -288,10 +311,12 @@ public class ChessCommands {
             return 0;
         }
 
-        // Create spectator GUI
-        ChessGUI spectatorGUI = new SpectatorGUI(player, game);
-        spectatorGUI.open();
+        if (GameManager.getInstance().getPlayerGame(spectator) != null) {
+            context.getSource().sendFailure(Component.literal("§cYou cannot spectate while in a game. Resign or finish your game first."));
+            return 0;
+        }
 
+        GameManager.getInstance().addSpectator(game, spectator);
         context.getSource().sendSuccess(() -> Component.literal("§9Now spectating " + target.getName().getString() + "'s game"), false);
         return 1;
     }
@@ -311,12 +336,12 @@ public class ChessCommands {
 
         context.getSource().sendSuccess(() -> Component.literal(
                 "§6=== " + target.getName().getString() + "'s Chess Stats ===\n" +
-                        "§7ELO Rating: §6" + data.elo + "\n" +
+                        "§7ELO Rating: §6" + data.getElo() + "\n" +
                         "§7Games Played: §f" + data.gamesPlayed + "\n" +
                         "§7Wins: §a" + data.wins + " §7(§a" + String.format("%.1f%%", data.getWinRate() * 100) + "§7)\n" +
                         "§7Losses: §c" + data.losses + "\n" +
                         "§7Draws: §e" + data.draws + "\n" +
-                        "§7Favorite Time Control: §b" + data.favoriteTimeControl
+                        "§7Favorite Time Control: §b" + (data.favoriteTimeControl != null ? data.favoriteTimeControl : "N/A")
         ), false);
 
         return 1;
@@ -324,13 +349,17 @@ public class ChessCommands {
 
     private static int showLeaderboard(CommandContext<CommandSourceStack> context) {
         List<PlayerData> leaders = GameManager.getInstance().getLeaderboard(10);
+        if (leaders.isEmpty()) {
+            context.getSource().sendSuccess(() -> Component.literal("§7The leaderboard is empty or no players have played enough games yet."), false);
+            return 1;
+        }
 
-        StringBuilder message = new StringBuilder("§6=== Chess Leaderboard ===\n");
+        StringBuilder message = new StringBuilder("§6=== Chess Leaderboard (Top 10) ===\n");
         for (int i = 0; i < leaders.size(); i++) {
             PlayerData data = leaders.get(i);
             message.append(String.format(
-                    "§7%d. §f%s §7- §6%d ELO §7(%d games)\n",
-                    i + 1, data.playerName, data.elo, data.gamesPlayed
+                    "§7%d. §f%s §7- §6%d ELO §7(%d W / %d L / %d D - %d games)\n",
+                    i + 1, data.playerName, data.getElo(), data.wins, data.losses, data.draws, data.gamesPlayed
             ));
         }
 
@@ -339,10 +368,7 @@ public class ChessCommands {
     }
 
     private static int showGameHistory(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer player = context.getSource().getPlayerOrException();
-
-        // This would load recent games from saved data
-        context.getSource().sendSuccess(() -> Component.literal("§7Game history feature coming soon!"), false);
+        context.getSource().sendSuccess(() -> Component.literal("§7Game history feature coming soon! (Check server files for saved games)"), false);
         return 1;
     }
 
@@ -355,8 +381,12 @@ public class ChessCommands {
             return 0;
         }
 
-        game.enableAnalysisMode();
-        context.getSource().sendSuccess(() -> Component.literal("§dAnalysis mode enabled!"), false);
+        if (!game.isGameActive()) {
+            game.enableAnalysisMode();
+            context.getSource().sendSuccess(() -> Component.literal("§dPost-game analysis mode enabled! You can now move pieces freely (not rated)."), false);
+        } else {
+            context.getSource().sendFailure(Component.literal("§cCannot enter analysis mode for an ongoing game. This is for post-game review."));
+        }
         return 1;
     }
 
@@ -365,11 +395,21 @@ public class ChessCommands {
         ChessGame game = GameManager.getInstance().getPlayerGame(player);
 
         if (game == null) {
-            context.getSource().sendFailure(Component.literal("§cYou are not in a game!"));
+            context.getSource().sendFailure(Component.literal("§cYou are not in a game to get a hint for!"));
             return 0;
         }
 
-        // Request hint from Stockfish integration
+        if (!game.isGameActive() && !game.isAnalysisMode()) {
+            context.getSource().sendFailure(Component.literal("§cThe game is over. Use /chess analyze to review."));
+            return 0;
+        }
+
+        if (!game.isPlayerTurn(player) && !game.isAnalysisMode()) {
+            context.getSource().sendFailure(Component.literal("§cIt's not your turn to get a hint."));
+            return 0;
+        }
+
+
         StockfishIntegration.getInstance().requestHint(game.getBoard().toFEN(), hint -> {
             player.sendSystemMessage(Component.literal("§bHint: " + hint));
         });
@@ -380,20 +420,21 @@ public class ChessCommands {
 
     private static int openChessBoard(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-
-        // Open practice board or current game
         ChessGame game = GameManager.getInstance().getPlayerGame(player);
+
         if (game != null) {
             ChessGUI gui = GameManager.getInstance().getPlayerGUI(player);
             if (gui != null) {
-                gui.open();
+                if (!gui.isOpen()) gui.open();
+                gui.updateBoard(); // Ensure it's up-to-date
+            } else { // Should not happen if in game
+                context.getSource().sendFailure(Component.literal("§cError: In game but no GUI found. Re-opening."));
+                GameManager.getInstance().createGame(game.getWhitePlayer(), game.getBlackPlayer(), game.getTimeControl()); // Re-create to fix
             }
         } else {
-            // Create practice board
             PracticeBoardGUI practiceGUI = new PracticeBoardGUI(player);
             practiceGUI.open();
         }
-
         return 1;
     }
 
@@ -401,12 +442,15 @@ public class ChessCommands {
         ServerPlayer player = context.getSource().getPlayerOrException();
         ChessGame game = GameManager.getInstance().getPlayerGame(player);
 
-        if (game == null) {
-            context.getSource().sendFailure(Component.literal("§cYou are not in a game!"));
+        String fen;
+        if (game != null) {
+            fen = game.getBoard().toFEN();
+        } else {
+            // If not in a game, maybe show FEN of a practice board if one is open?
+            // For now, just require being in a game.
+            context.getSource().sendFailure(Component.literal("§cYou are not in a game. Open a practice board or start a game to see FEN."));
             return 0;
         }
-
-        String fen = game.getBoard().toFEN();
         context.getSource().sendSuccess(() -> Component.literal("§7Current FEN: §f" + fen), false);
         return 1;
     }
@@ -415,28 +459,36 @@ public class ChessCommands {
         ServerPlayer player = context.getSource().getPlayerOrException();
         String fen = StringArgumentType.getString(context, "fen");
 
-        // Create practice board from FEN
+        if (GameManager.getInstance().isPlayerBusy(player)) {
+            context.getSource().sendFailure(Component.literal("§cYou are busy. Finish your game/challenge before loading FEN."));
+            return 0;
+        }
+
         try {
             PracticeBoardGUI practiceGUI = new PracticeBoardGUI(player, fen);
             practiceGUI.open();
-            context.getSource().sendSuccess(() -> Component.literal("§aLoaded position from FEN"), false);
+            context.getSource().sendSuccess(() -> Component.literal("§aLoaded position from FEN into practice board."), false);
             return 1;
+        } catch (IllegalArgumentException e) {
+            context.getSource().sendFailure(Component.literal("§cInvalid FEN string: " + e.getMessage()));
+            return 0;
         } catch (Exception e) {
-            context.getSource().sendFailure(Component.literal("§cInvalid FEN: " + e.getMessage()));
+            context.getSource().sendFailure(Component.literal("§cError loading FEN: " + e.getMessage()));
+            e.printStackTrace();
             return 0;
         }
     }
 
-    // Admin commands
     private static int reloadData(CommandContext<CommandSourceStack> context) {
-        GameManager.getInstance().savePlayerData();
-        context.getSource().sendSuccess(() -> Component.literal("§aChess data reloaded!"), false);
+        // GameManager.getInstance().loadPlayerData(); // Already saved periodically and on shutdown/load
+        GameManager.getInstance().savePlayerData(); // Force a save
+        context.getSource().sendSuccess(() -> Component.literal("§aPlayer data saved. It loads automatically on server start."), false);
         return 1;
     }
 
     private static int backupData(CommandContext<CommandSourceStack> context) {
-        // Create backup
-        context.getSource().sendSuccess(() -> Component.literal("§aChess data backed up!"), false);
+        // Actual backup logic would involve copying files, possibly to a timestamped folder
+        context.getSource().sendSuccess(() -> Component.literal("§aManual backup feature not fully implemented. Data is saved to chess_data regularly."), false);
         return 1;
     }
 
@@ -453,17 +505,37 @@ public class ChessCommands {
 
             PlayerData data = GameManager.getInstance().getPlayerData(target);
             data.elo = newELO;
-            GameManager.getInstance().savePlayerData();
+            GameManager.getInstance().savePlayerData(); // Save immediately after admin change
 
             context.getSource().sendSuccess(() -> Component.literal(
                     "§aSet " + target.getName().getString() + "'s ELO to " + newELO
-            ), false);
+            ), true);
 
-            target.sendSystemMessage(Component.literal("§6Your ELO has been set to " + newELO + " by an admin"));
+            target.sendSystemMessage(Component.literal("§6Your ELO has been set to " + newELO + " by an admin."));
             return 1;
         } catch (NumberFormatException e) {
             context.getSource().sendFailure(Component.literal("§cInvalid ELO number: " + eloStr));
             return 0;
         }
+    }
+
+    private static int adminUnbusyPlayer(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "player");
+        GameManager gm = GameManager.getInstance();
+
+        boolean wasBusyGame = gm.getPlayerGame(target) != null;
+        boolean hadPendingChallenges = gm.getPendingChallenges().values().stream()
+                .anyMatch(c -> c.challenger.equals(target) || c.challenged.equals(target));
+
+        gm.adminForceEndGameForPlayer(target);
+        gm.adminRemoveChallengesForPlayer(target);
+
+        if (wasBusyGame || hadPendingChallenges) {
+            context.getSource().sendSuccess(() -> Component.literal("§a" + target.getName().getString() + " is no longer busy with chess activities."), true);
+            target.sendSystemMessage(Component.literal("§eAn admin has cleared your chess activity status."));
+        } else {
+            context.getSource().sendSuccess(() -> Component.literal("§7" + target.getName().getString() + " was not busy with chess activities."), false);
+        }
+        return 1;
     }
 }

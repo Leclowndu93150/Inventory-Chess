@@ -7,12 +7,10 @@ import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.game.ChessBoard;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.CustomModelData;
 
 // Practice board GUI for analyzing positions
 public class PracticeBoardGUI extends SimpleGui {
@@ -38,57 +36,72 @@ public class PracticeBoardGUI extends SimpleGui {
     }
 
     private void setupBoard() {
-        // Similar to ChessGUI but without game restrictions
         updateBoardDisplay();
         setupPracticeUtilities();
     }
 
     private void updateBoardDisplay() {
-        // Board display logic similar to ChessGUI
-        for (int i = 0; i < 48; i++) {
+        // Clear all slots first
+        for (int i = 0; i < 72; i++) {
+            clearSlot(i);
+        }
+
+        // Update the 8x8 chess board using Bukkit-style positioning
+        for (int i = 0; i < 64; i++) {
             int row = i / 8;
             int col = i % 8;
 
             ChessPosition position = new ChessPosition(col, row);
             ChessPiece piece = board.getPiece(position);
 
+            // Calculate slot index using Bukkit formula
+            int slotIndex = i + i / 8;
+
             if (piece != null) {
-                setSlot(i, new GuiElementBuilder(Items.GRAY_DYE)
-                        .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(piece.modelData))
-                        .setComponent(DataComponents.CUSTOM_NAME, piece.displayName));
+                setSlot(slotIndex, new GuiElementBuilder(Items.GRAY_DYE)
+                        .setCustomModelData(piece.modelData)
+                        .setName(piece.displayName.copy().append(Component.literal(" - " + position.toNotation()))));
             } else {
                 boolean isLight = (col + row) % 2 == 0;
                 BoardSquare square = isLight ? BoardSquare.LIGHT_SQUARE : BoardSquare.DARK_SQUARE;
-                setSlot(i, new GuiElementBuilder(Items.GRAY_DYE)
-                        .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(square.modelData))
-                        .setComponent(DataComponents.CUSTOM_NAME, Component.literal(position.toNotation())));
+                setSlot(slotIndex, new GuiElementBuilder(Items.GRAY_DYE)
+                        .setCustomModelData(square.modelData)
+                        .setName(Component.literal(position.toNotation()))
+                        .hideDefaultTooltip());
             }
         }
     }
 
     private void setupPracticeUtilities() {
         // Reset board
-        setSlot(72, new GuiElementBuilder(Items.PAPER)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§cReset Board"))
-                .setCallback((slot, type, action, gui) -> {
+        setSlot(8, new GuiElementBuilder(Items.PAPER)
+                .setName(Component.literal("§cReset Board"))
+                .setCallback((index, type, action, gui) -> {
                     board = new ChessBoard();
                     updateBoardDisplay();
                 }));
 
         // Analyze with Stockfish
-        setSlot(73, new GuiElementBuilder(Items.ENDER_EYE)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§dAnalyze Position"))
-                .setCallback((slot, type, action, gui) -> {
+        setSlot(17, new GuiElementBuilder(Items.ENDER_EYE)
+                .setName(Component.literal("§dAnalyze Position"))
+                .setCallback((index, type, action, gui) -> {
                     StockfishIntegration.getInstance().analyzePosition(board.toFEN(), analysis -> {
                         player.sendSystemMessage(Component.literal("§dAnalysis: " + analysis));
                     });
                 }));
 
         // Get FEN
-        setSlot(74, new GuiElementBuilder(Items.BOOK)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§7Show FEN"))
-                .setCallback((slot, type, action, gui) -> {
+        setSlot(26, new GuiElementBuilder(Items.BOOK)
+                .setName(Component.literal("§7Show FEN"))
+                .setCallback((index, type, action, gui) -> {
                     player.sendSystemMessage(Component.literal("§7FEN: " + board.toFEN()));
+                }));
+
+        // Exit button
+        setSlot(35, new GuiElementBuilder(Items.BARRIER)
+                .setName(Component.literal("§cClose Practice Board"))
+                .setCallback((index, type, action, gui) -> {
+                    close();
                 }));
     }
 }

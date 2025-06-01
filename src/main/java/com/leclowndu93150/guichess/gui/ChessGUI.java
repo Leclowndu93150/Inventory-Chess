@@ -9,35 +9,31 @@ import com.leclowndu93150.guichess.chess.pieces.PieceType;
 import com.leclowndu93150.guichess.chess.util.GameState;
 import com.leclowndu93150.guichess.chess.util.GameUtility;
 import com.leclowndu93150.guichess.data.PlayerData;
+import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.game.ChessBoard;
 import com.leclowndu93150.guichess.game.ChessGame;
 import com.leclowndu93150.guichess.game.GameManager;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.CustomModelData;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-// Main GUI implementation
 public class ChessGUI extends SimpleGui {
     private final ChessGame game;
     private final PieceColor playerColor;
-    final ServerPlayer player;
+    protected final ServerPlayer player;
 
-    // GUI state
     private boolean showingPromotionDialog = false;
     private ChessPosition promotionFrom;
     private ChessPosition promotionTo;
 
     public ChessGUI(ServerPlayer player, ChessGame game, PieceColor playerColor) {
-        super(MenuType.GENERIC_9x6, player, true); // 72 slots total
+        super(MenuType.GENERIC_9x6, player, true);
         this.player = player;
         this.game = game;
         this.playerColor = playerColor;
@@ -52,6 +48,8 @@ public class ChessGUI extends SimpleGui {
     }
 
     public void updateBoard() {
+        if (!isOpen()) return;
+
         if (showingPromotionDialog) {
             setupPromotionGUI();
             return;
@@ -60,56 +58,78 @@ public class ChessGUI extends SimpleGui {
         ChessBoard board = game.getBoard();
         Set<ChessPosition> validMoves = game.getValidMoves();
         ChessPosition selected = game.getSelectedSquare();
+        List<ChessMove> moveHistory = board.getMoveHistory();
 
-        // Update the 8x6 chess board (48 squares)
-        for (int i = 0; i < 48; i++) {
+        for (int i = 0; i < 72; i++) {
+            clearSlot(i);
+        }
+
+        for (int i = 0; i < 64; i++) {
             int row = i / 8;
             int col = i % 8;
 
-            // Convert to chess coordinates (flip for black player)
-            int chessRank = playerColor == PieceColor.WHITE ? row : 7 - row;
-            int chessFile = playerColor == PieceColor.WHITE ? col : 7 - col;
+            int chessRank, chessFile;
+            if (playerColor == PieceColor.WHITE) {
+                chessRank = row;
+                chessFile = col;
+            } else {
+                chessRank = 7 - row;
+                chessFile = col; // Corrected: files are not reversed for black's view
+            }
 
             ChessPosition position = new ChessPosition(chessFile, chessRank);
             ChessPiece piece = board.getPiece(position);
 
+            int slotIndex = i + i / 8;
+            if (slotIndex >= 72) continue; // Should not happen if GUI is 9x8 effectively
+
             GuiElementBuilder builder;
 
             if (piece != null) {
-                // Show the piece
                 builder = createPieceElement(piece, position);
             } else {
-                // Empty square
                 builder = createEmptySquareElement(position);
             }
 
-            // Add highlighting
-            if (position.equals(selected)) {
-                builder.setCustomModelData(BoardSquare.SELECTED_SQUARE.modelData);
-            } else if (validMoves.contains(position)) {
-                if (piece != null) {
-                    builder.setCustomModelData(BoardSquare.CAPTURE_MOVE.modelData);
-                } else {
-                    builder.setCustomModelData(BoardSquare.VALID_MOVE.modelData);
+            boolean isHighlighted = false;
+            if (!moveHistory.isEmpty()) {
+                ChessMove lastMove = moveHistory.get(moveHistory.size() - 1);
+                if (position.equals(lastMove.from)) {
+                    builder.setCustomModelData(BoardSquare.LAST_MOVE_FROM.modelData);
+                    isHighlighted = true;
+                } else if (position.equals(lastMove.to)) {
+                    builder.setCustomModelData(BoardSquare.LAST_MOVE_TO.modelData);
+                    isHighlighted = true;
                 }
             }
 
-            // Add click handler
-            builder.setCallback((slot, type, action, gui) -> {
-                game.selectSquare(player, position);
+            if (!isHighlighted) {
+                if (position.equals(selected)) {
+                    builder.setCustomModelData(BoardSquare.SELECTED_SQUARE.modelData);
+                } else if (validMoves.contains(position)) {
+                    if (board.getPiece(position) != null) { // Use board.getPiece for accurate capture indication
+                        builder.setCustomModelData(BoardSquare.CAPTURE_MOVE.modelData);
+                    } else {
+                        builder.setCustomModelData(BoardSquare.VALID_MOVE.modelData);
+                    }
+                }
+            }
+
+            final ChessPosition currentPos = position; // effectively final for lambda
+            builder.setCallback((index, type, action, gui) -> {
+                if (!game.isGameActive()) return;
+                game.selectSquare(player, currentPos);
             });
 
-            setSlot(i, builder);
+            setSlot(slotIndex, builder);
         }
-
-        // Update utility slots
         updateUtilitySlots();
     }
 
     private GuiElementBuilder createPieceElement(ChessPiece piece, ChessPosition position) {
         return new GuiElementBuilder(Items.GRAY_DYE)
-                .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(piece.modelData))
-                .setComponent(DataComponents.CUSTOM_NAME, piece.displayName.copy().append(Component.literal(" - " + position.toNotation())));
+                .setCustomModelData(piece.modelData)
+                .setName(piece.displayName.copy().append(Component.literal(" - " + position.toNotation())));
     }
 
     private GuiElementBuilder createEmptySquareElement(ChessPosition position) {
@@ -117,130 +137,107 @@ public class ChessGUI extends SimpleGui {
         BoardSquare squareType = isLight ? BoardSquare.LIGHT_SQUARE : BoardSquare.DARK_SQUARE;
 
         return new GuiElementBuilder(Items.GRAY_DYE)
-                .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(squareType.modelData))
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal(position.toNotation()))
+                .setCustomModelData(squareType.modelData)
+                .setName(Component.literal(position.toNotation()))
                 .hideDefaultTooltip();
     }
 
-    void setupUtilitySlots() {
-        // Timer displays (slots 48-49)
+    protected void setupUtilitySlots() {
         updateTimerDisplays();
-
-        // Turn indicator (slot 50)
         updateTurnIndicator();
 
-        // Game controls (slots 51-53)
-        setSlot(51, createUtilityButton(GameUtility.RESIGN_BUTTON, this::handleResign));
-        setSlot(52, createDrawButton());
-        setSlot(53, createUtilityButton(GameUtility.EXIT_BUTTON, this::handleExit));
+        setSlot(62, createUtilityButton(GameUtility.RESIGN_BUTTON, this::handleResign));
+        setSlot(17, createUtilityButton(GameUtility.RESIGN_BUTTON, this::handleResign));
 
-        // Extended board area for analysis info (slots 54-71)
-        setupAnalysisArea();
-
-        // Hotbar utilities (slots 72-89)
-        setupHotbarUtilities();
+        updateDrawButtons();
+        setupAnalysisTools();
     }
 
     private void updateUtilitySlots() {
         updateTimerDisplays();
         updateTurnIndicator();
-        setSlot(52, createDrawButton()); // Update draw button state
+        updateDrawButtons();
     }
 
     private void updateTimerDisplays() {
-        // White timer
-        GuiElementBuilder whiteTimer = new GuiElementBuilder(Items.GRAY_DYE)
-                .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(GameUtility.TIMER_WHITE.modelData))
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§fWhite: " + game.formatTime(game.getWhiteTimeLeft())));
-        setSlot(48, whiteTimer);
+        GuiElementBuilder whiteTimer = new GuiElementBuilder(Items.CLOCK)
+                .setName(Component.literal("§fWhite: " + game.formatTime(game.getWhiteTimeLeft())));
 
-        // Black timer
-        GuiElementBuilder blackTimer = new GuiElementBuilder(Items.GRAY_DYE)
-                .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(GameUtility.TIMER_BLACK.modelData))
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§8Black: " + game.formatTime(game.getBlackTimeLeft())));
-        setSlot(49, blackTimer);
+        GuiElementBuilder blackTimer = new GuiElementBuilder(Items.CLOCK)
+                .setName(Component.literal("§8Black: " + game.formatTime(game.getBlackTimeLeft())));
+
+        if (playerColor == PieceColor.WHITE) {
+            setSlot(53, whiteTimer);
+            setSlot(26, blackTimer);
+        } else {
+            setSlot(53, blackTimer);
+            setSlot(26, whiteTimer);
+        }
     }
 
     private void updateTurnIndicator() {
         PieceColor currentTurn = game.getBoard().getCurrentTurn();
-        GameUtility indicator = currentTurn == PieceColor.WHITE ?
-                GameUtility.TURN_INDICATOR_WHITE : GameUtility.TURN_INDICATOR_BLACK;
+        GameState gameState = game.getBoard().getGameState();
+        GuiElementBuilder turnIndicator;
 
-        GuiElementBuilder turnIndicator = new GuiElementBuilder(Items.GRAY_DYE)
-                .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(indicator.modelData))
-                .setComponent(DataComponents.CUSTOM_NAME, indicator.displayName);
-        setSlot(50, turnIndicator);
+        if (!game.isGameActive() || gameState == GameState.CHECKMATE_WHITE_WINS || gameState == GameState.CHECKMATE_BLACK_WINS ||
+                gameState.name().contains("DRAW") || gameState.name().contains("RESIGN") ||
+                gameState.name().contains("TIME_OUT") || gameState == GameState.STALEMATE) {
+            turnIndicator = new GuiElementBuilder(Items.YELLOW_STAINED_GLASS)
+                    .setName(Component.literal("§6Game Finished"));
+        } else if (currentTurn == PieceColor.WHITE) {
+            turnIndicator = new GuiElementBuilder(Items.LIME_STAINED_GLASS)
+                    .setName(Component.literal("§fWhite's Move"));
+        } else {
+            turnIndicator = new GuiElementBuilder(Items.RED_STAINED_GLASS)
+                    .setName(Component.literal("§8Black's Move"));
+        }
+        setSlot(44, turnIndicator);
+        setSlot(35, turnIndicator);
     }
 
-    private GuiElementBuilder createDrawButton() {
+    private void setupAnalysisTools() {
+        setSlot(9, createUtilityButton(GameUtility.ANALYZE_POSITION, this::handleAnalyze));
+        setSlot(18, createUtilityButton(GameUtility.STOCKFISH_HINT, this::handleHint));
+
+        PlayerData playerDataObj = GameManager.getInstance().getPlayerData(player);
+        setSlot(27, new GuiElementBuilder(Items.EXPERIENCE_BOTTLE)
+                .setName(Component.literal("§6ELO: " + playerDataObj.elo)));
+
+        setSlot(36, new GuiElementBuilder(Items.BOOK)
+                .setName(Component.literal("§7" + game.getTimeControl().displayName)));
+    }
+
+    private void updateDrawButtons() {
+        if (!game.isGameActive()) {
+            clearSlot(71);
+            clearSlot(8);
+            return;
+        }
+
         if (game.isDrawOffered()) {
-            if (game.getDrawOfferer() == player) {
-                return createUtilityButton(GameUtility.DRAW_DECLINE, this::handleCancelDraw);
+            if (game.getDrawOfferer() != null && game.getDrawOfferer().equals(player)) {
+                setSlot(71, createUtilityButton(GameUtility.DRAW_DECLINE, this::handleCancelDrawOffer));
+                clearSlot(8);
             } else {
-                return createUtilityButton(GameUtility.DRAW_ACCEPT, this::handleAcceptDraw);
+                setSlot(71, createUtilityButton(GameUtility.DRAW_ACCEPT, this::handleAcceptDraw));
+                setSlot(8, createUtilityButton(GameUtility.DRAW_DECLINE, this::handleDeclineDraw));
             }
         } else {
-            return createUtilityButton(GameUtility.DRAW_OFFER, this::handleOfferDraw);
-        }
-    }
-
-    private void setupAnalysisArea() {
-        if (game.isAnalysisMode()) {
-            Map<String, Object> analysis = game.getAnalysisData();
-            // Display analysis information
-            for (int i = 54; i < 72; i++) {
-                setSlot(i, new GuiElementBuilder(Items.GRAY_DYE)
-                        .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(GameUtility.ANALYZE_POSITION.modelData))
-                        .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§dAnalysis Data")));
-            }
-        } else {
-            // Show move history or other info
-            List<ChessMove> moves = game.getBoard().getMoveHistory();
-            for (int i = 54; i < 72 && i - 54 < moves.size(); i++) {
-                ChessMove move = moves.get(i - 54);
-                setSlot(i, new GuiElementBuilder(Items.PAPER)
-                        .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§7" + (i - 53) + ". " + move.toNotation())));
-            }
-        }
-    }
-
-    private void setupHotbarUtilities() {
-        // Game analysis tools
-        setSlot(72, createUtilityButton(GameUtility.ANALYZE_POSITION, this::handleAnalyze));
-        setSlot(73, createUtilityButton(GameUtility.STOCKFISH_HINT, this::handleHint));
-        setSlot(74, createUtilityButton(GameUtility.UNDO_MOVE, this::handleUndo));
-        setSlot(75, createUtilityButton(GameUtility.REDO_MOVE, this::handleRedo));
-
-        // Social features
-        setSlot(76, createUtilityButton(GameUtility.SPECTATE_BUTTON, this::handleSpectate));
-        setSlot(77, createUtilityButton(GameUtility.VIEW_LEADERBOARD, this::handleLeaderboard));
-        setSlot(78, createUtilityButton(GameUtility.CHALLENGE_PLAYER, this::handleChallenge));
-        setSlot(79, createUtilityButton(GameUtility.SETTINGS_BUTTON, this::handleSettings));
-
-        // Game state info
-        GameState state = game.getBoard().getGameState();
-        setSlot(80, new GuiElementBuilder(Items.BOOK)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§7Game State: " + state.name())));
-
-        setSlot(81, new GuiElementBuilder(Items.CLOCK)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§7Time Control: " + game.getTimeControl().displayName)));
-
-        PlayerData playerData = GameManager.getInstance().getPlayerData(player);
-        setSlot(82, new GuiElementBuilder(Items.EXPERIENCE_BOTTLE)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§6ELO: " + playerData.elo)));
-
-        // Fill remaining slots
-        for (int i = 83; i < 90; i++) {
-            setSlot(i, new GuiElementBuilder(Items.GRAY_STAINED_GLASS_PANE)
-                    .setComponent(DataComponents.CUSTOM_NAME, Component.literal("")));
+            setSlot(71, createUtilityButton(GameUtility.DRAW_OFFER, this::handleOfferDraw));
+            clearSlot(8);
         }
     }
 
     private GuiElementBuilder createUtilityButton(GameUtility utility, Runnable action) {
         return new GuiElementBuilder(Items.GRAY_DYE)
-                .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(utility.modelData))
-                .setComponent(DataComponents.CUSTOM_NAME, utility.displayName)
-                .setCallback((slot, type, actionType, gui) -> action.run());
+                .setCustomModelData(utility.modelData)
+                .setName(utility.displayName)
+                .setCallback((index, type, actionType, gui) -> {
+                    if (game.isGameActive() || utility == GameUtility.EXIT_BUTTON) { // Allow exit even if game inactive
+                        action.run();
+                    }
+                });
     }
 
     public void showPromotionDialog(ChessPosition from, ChessPosition to) {
@@ -251,44 +248,40 @@ public class ChessGUI extends SimpleGui {
     }
 
     private void setupPromotionGUI() {
-        // Clear the board area and show promotion options
-        for (int i = 0; i < 48; i++) {
-            setSlot(i, new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE)
-                    .setComponent(DataComponents.CUSTOM_NAME, Component.literal("")));
+        for (int i = 0; i < 72; i++) {
+            clearSlot(i);
         }
 
-        // Show promotion options in center
-        setSlot(20, createPromotionOption(PieceType.QUEEN));
-        setSlot(21, createPromotionOption(PieceType.ROOK));
-        setSlot(22, createPromotionOption(PieceType.BISHOP));
-        setSlot(23, createPromotionOption(PieceType.KNIGHT));
+        setSlot(39, createPromotionOption(PieceType.QUEEN));  // Centered more (example slots)
+        setSlot(40, createPromotionOption(PieceType.ROOK));
+        setSlot(41, createPromotionOption(PieceType.BISHOP));
+        setSlot(42, createPromotionOption(PieceType.KNIGHT));
 
-        // Instructions
-        setSlot(28, new GuiElementBuilder(Items.PAPER)
-                .setComponent(DataComponents.CUSTOM_NAME, Component.literal("§eChoose promotion piece")));
+
+        setSlot(31, new GuiElementBuilder(Items.PAPER)
+                .setName(Component.literal("§eChoose promotion piece")));
     }
 
     private GuiElementBuilder createPromotionOption(PieceType pieceType) {
-        ChessPiece piece = ChessPiece.fromColorAndType(playerColor, pieceType);
+        ChessPiece piece = ChessPiece.fromColorAndType(game.getPlayerColor(player), pieceType); // Use game's current player color
         GameUtility utility = switch (pieceType) {
             case QUEEN -> GameUtility.PROMOTE_QUEEN;
             case ROOK -> GameUtility.PROMOTE_ROOK;
             case BISHOP -> GameUtility.PROMOTE_BISHOP;
             case KNIGHT -> GameUtility.PROMOTE_KNIGHT;
-            default -> GameUtility.PROMOTE_QUEEN;
+            default -> GameUtility.PROMOTE_QUEEN; // Should not happen
         };
 
         return new GuiElementBuilder(Items.GRAY_DYE)
-                .setComponent(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(utility.modelData))
-                .setComponent(DataComponents.CUSTOM_NAME, utility.displayName)
-                .setCallback((slot, type, action, gui) -> {
+                .setCustomModelData(piece.modelData) // Display actual piece model
+                .setName(utility.displayName)
+                .setCallback((index, type, action, gui) -> {
                     game.makeMove(player, promotionFrom, promotionTo, pieceType);
                     showingPromotionDialog = false;
                     updateBoard();
                 });
     }
 
-    // Event handlers
     private void handleResign() {
         game.resign(player);
     }
@@ -301,56 +294,30 @@ public class ChessGUI extends SimpleGui {
         game.respondToDraw(player, true);
     }
 
-    private void handleCancelDraw() {
+    private void handleDeclineDraw() {
         game.respondToDraw(player, false);
     }
 
-    private void handleExit() {
-        close();
+    private void handleCancelDrawOffer() {
+        game.cancelDrawOffer(player);
     }
 
     private void handleAnalyze() {
-        game.enableAnalysisMode();
+        if (game.isAnalysisMode()) {
+            player.sendSystemMessage(Component.literal("§dAnalysis mode already enabled."));
+        } else {
+            game.enableAnalysisMode();
+            player.sendSystemMessage(Component.literal("§dAnalysis mode enabled!"));
+        }
     }
 
     private void handleHint() {
-        // Request hint from analysis
-        player.sendSystemMessage(Component.literal("§bAnalyzing position..."));
-    }
-
-    private void handleUndo() {
-        player.sendSystemMessage(Component.literal("§7Undo not available in live games"));
-    }
-
-    private void handleRedo() {
-        player.sendSystemMessage(Component.literal("§7Redo not available in live games"));
-    }
-
-    private void handleSpectate() {
-        player.sendSystemMessage(Component.literal("§9Spectator mode not yet implemented"));
-    }
-
-    private void handleLeaderboard() {
-        showLeaderboard();
-    }
-
-    private void handleChallenge() {
-        player.sendSystemMessage(Component.literal("§eUse /chess challenge <player> to challenge someone"));
-    }
-
-    private void handleSettings() {
-        player.sendSystemMessage(Component.literal("§7Settings GUI not yet implemented"));
-    }
-
-    private void showLeaderboard() {
-        List<PlayerData> leaders = GameManager.getInstance().getLeaderboard(10);
-        player.sendSystemMessage(Component.literal("§6=== Chess Leaderboard ==="));
-        for (int i = 0; i < leaders.size(); i++) {
-            PlayerData data = leaders.get(i);
-            player.sendSystemMessage(Component.literal(String.format(
-                    "§7%d. §f%s §7- §6%d ELO §7(%d games, %.1f%% win rate)",
-                    i + 1, data.playerName, data.elo, data.gamesPlayed, data.getWinRate() * 100
-            )));
+        if (!game.isPlayerTurn(player) && !game.isAnalysisMode()) {
+            player.sendSystemMessage(Component.literal("§cIt's not your turn to get a hint."));
+            return;
         }
+        StockfishIntegration.getInstance().requestHint(game.getBoard().toFEN(), hint -> {
+            player.sendSystemMessage(Component.literal("§bHint: " + hint));
+        });
     }
 }

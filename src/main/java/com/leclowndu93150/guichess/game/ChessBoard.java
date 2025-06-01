@@ -14,20 +14,15 @@ public class ChessBoard {
     private PieceColor currentTurn = PieceColor.WHITE;
     private GameState gameState = GameState.WHITE_TURN;
 
-    // Castling rights
     private boolean whiteKingSideCastle = true;
     private boolean whiteQueenSideCastle = true;
     private boolean blackKingSideCastle = true;
     private boolean blackQueenSideCastle = true;
 
-    // En passant
     private ChessPosition enPassantTarget = null;
-
-    // Move history
     private List<ChessMove> moveHistory = new ArrayList<>();
-    private List<String> positionHistory = new ArrayList<>();
+    private List<String> positionHistoryFenOnly = new ArrayList<>(); // Store only board state for threefold
 
-    // Fifty move rule
     private int halfMoveClock = 0;
     private int fullMoveNumber = 1;
 
@@ -36,44 +31,18 @@ public class ChessBoard {
     }
 
     private void setupInitialPosition() {
-        // Clear board
         Arrays.fill(board, null);
 
-        // White pieces
-        board[0] = ChessPiece.WHITE_ROOK;    // a1
-        board[1] = ChessPiece.WHITE_KNIGHT;  // b1
-        board[2] = ChessPiece.WHITE_BISHOP;  // c1
-        board[3] = ChessPiece.WHITE_QUEEN;   // d1
-        board[4] = ChessPiece.WHITE_KING;    // e1
-        board[5] = ChessPiece.WHITE_BISHOP;  // f1
-        board[6] = ChessPiece.WHITE_KNIGHT;  // g1
-        board[7] = ChessPiece.WHITE_ROOK;    // h1
+        board[0] = ChessPiece.WHITE_ROOK; board[1] = ChessPiece.WHITE_KNIGHT; board[2] = ChessPiece.WHITE_BISHOP; board[3] = ChessPiece.WHITE_QUEEN; board[4] = ChessPiece.WHITE_KING; board[5] = ChessPiece.WHITE_BISHOP; board[6] = ChessPiece.WHITE_KNIGHT; board[7] = ChessPiece.WHITE_ROOK;
+        for (int i = 8; i < 16; i++) board[i] = ChessPiece.WHITE_PAWN;
+        for (int i = 48; i < 56; i++) board[i] = ChessPiece.BLACK_PAWN;
+        board[56] = ChessPiece.BLACK_ROOK; board[57] = ChessPiece.BLACK_KNIGHT; board[58] = ChessPiece.BLACK_BISHOP; board[59] = ChessPiece.BLACK_QUEEN; board[60] = ChessPiece.BLACK_KING; board[61] = ChessPiece.BLACK_BISHOP; board[62] = ChessPiece.BLACK_KNIGHT; board[63] = ChessPiece.BLACK_ROOK;
 
-        // White pawns
-        for (int i = 8; i < 16; i++) {
-            board[i] = ChessPiece.WHITE_PAWN;
-        }
-
-        // Black pawns
-        for (int i = 48; i < 56; i++) {
-            board[i] = ChessPiece.BLACK_PAWN;
-        }
-
-        // Black pieces
-        board[56] = ChessPiece.BLACK_ROOK;    // a8
-        board[57] = ChessPiece.BLACK_KNIGHT;  // b8
-        board[58] = ChessPiece.BLACK_BISHOP;  // c8
-        board[59] = ChessPiece.BLACK_QUEEN;   // d8
-        board[60] = ChessPiece.BLACK_KING;    // e8
-        board[61] = ChessPiece.BLACK_BISHOP;  // f8
-        board[62] = ChessPiece.BLACK_KNIGHT;  // g8
-        board[63] = ChessPiece.BLACK_ROOK;    // h8
-
-        positionHistory.add(toFEN());
+        positionHistoryFenOnly.add(boardToFENBoardPart());
     }
 
     public ChessPiece getPiece(ChessPosition pos) {
-        if (!pos.isValid()) return null;
+        if (pos == null || !pos.isValid()) return null;
         return board[pos.toIndex()];
     }
 
@@ -83,32 +52,38 @@ public class ChessBoard {
     }
 
     public void setPiece(ChessPosition pos, ChessPiece piece) {
-        if (pos.isValid()) {
+        if (pos != null && pos.isValid()) {
             board[pos.toIndex()] = piece;
         }
     }
 
+    public void setCurrentTurn(PieceColor turn) {
+        this.currentTurn = turn;
+    }
+
     public boolean makeMove(ChessMove move) {
-        if (!isLegalMove(move)) return false;
-
+        // Assumes move is already validated as legal by ChessGame calling getLegalMoves
         ChessPiece movingPiece = getPiece(move.from);
-        ChessPiece capturedPiece = getPiece(move.to);
+        ChessPiece capturedPiece = getPiece(move.to); // Could be null
 
-        // Handle special moves
+        // Handle en passant capture: remove the actual captured pawn
         if (move.isEnPassant) {
-            // Remove the captured pawn
             ChessPosition capturedPawnPos = new ChessPosition(move.to.file, move.from.rank);
             setPiece(capturedPawnPos, null);
         }
 
+        // Make the move on the board
+        setPiece(move.to, movingPiece);
+        setPiece(move.from, null);
+
+        // Handle castling: move the rook
         if (move.isCastling) {
-            // Move the rook
-            if (move.to.file == 6) { // King-side castling
+            if (move.to.file == 6) { // King-side
                 ChessPosition rookFrom = new ChessPosition(7, move.from.rank);
                 ChessPosition rookTo = new ChessPosition(5, move.from.rank);
                 setPiece(rookTo, getPiece(rookFrom));
                 setPiece(rookFrom, null);
-            } else { // Queen-side castling
+            } else { // Queen-side (move.to.file == 2)
                 ChessPosition rookFrom = new ChessPosition(0, move.from.rank);
                 ChessPosition rookTo = new ChessPosition(3, move.from.rank);
                 setPiece(rookTo, getPiece(rookFrom));
@@ -116,24 +91,15 @@ public class ChessBoard {
             }
         }
 
-        // Make the move
-        setPiece(move.to, movingPiece);
-        setPiece(move.from, null);
-
         // Handle promotion
         if (move.promotionPiece != null) {
-            ChessPiece promotedPiece = ChessPiece.fromColorAndType(currentTurn, move.promotionPiece);
-            setPiece(move.to, promotedPiece);
+            setPiece(move.to, ChessPiece.fromColorAndType(currentTurn, move.promotionPiece));
         }
 
-        // Update castling rights
         updateCastlingRights(move, movingPiece);
-
-        // Update en passant target
         updateEnPassantTarget(move, movingPiece);
 
-        // Update clocks
-        if (capturedPiece != null || movingPiece.getType() == PieceType.PAWN) {
+        if (capturedPiece != null || (movingPiece != null && movingPiece.getType() == PieceType.PAWN)) {
             halfMoveClock = 0;
         } else {
             halfMoveClock++;
@@ -143,76 +109,83 @@ public class ChessBoard {
             fullMoveNumber++;
         }
 
-        // Switch turns
         currentTurn = currentTurn.opposite();
-
-        // Add to history
         moveHistory.add(move);
-        positionHistory.add(toFEN());
-
-        // Update game state
+        positionHistoryFenOnly.add(boardToFENBoardPart());
         updateGameState();
-
         return true;
     }
 
+
     private void updateCastlingRights(ChessMove move, ChessPiece movingPiece) {
-        // King moves
-        if (movingPiece == ChessPiece.WHITE_KING) {
-            whiteKingSideCastle = false;
-            whiteQueenSideCastle = false;
-        } else if (movingPiece == ChessPiece.BLACK_KING) {
-            blackKingSideCastle = false;
-            blackQueenSideCastle = false;
+        if (movingPiece == null) return;
+
+        if (movingPiece.getType() == PieceType.KING) {
+            if (movingPiece.isWhite()) {
+                whiteKingSideCastle = false;
+                whiteQueenSideCastle = false;
+            } else {
+                blackKingSideCastle = false;
+                blackQueenSideCastle = false;
+            }
         }
 
-        // Rook moves or captures
-        if (move.from.equals(new ChessPosition(0, 0)) || move.to.equals(new ChessPosition(0, 0))) {
-            whiteQueenSideCastle = false;
+        if (movingPiece.getType() == PieceType.ROOK) {
+            if (movingPiece.isWhite()) {
+                if (move.from.equals(new ChessPosition(0, 0))) whiteQueenSideCastle = false;
+                if (move.from.equals(new ChessPosition(7, 0))) whiteKingSideCastle = false;
+            } else {
+                if (move.from.equals(new ChessPosition(0, 7))) blackQueenSideCastle = false;
+                if (move.from.equals(new ChessPosition(7, 7))) blackKingSideCastle = false;
+            }
         }
-        if (move.from.equals(new ChessPosition(7, 0)) || move.to.equals(new ChessPosition(7, 0))) {
-            whiteKingSideCastle = false;
-        }
-        if (move.from.equals(new ChessPosition(0, 7)) || move.to.equals(new ChessPosition(0, 7))) {
-            blackQueenSideCastle = false;
-        }
-        if (move.from.equals(new ChessPosition(7, 7)) || move.to.equals(new ChessPosition(7, 7))) {
-            blackKingSideCastle = false;
-        }
+
+        // If a rook is captured on its starting square
+        if (move.to.equals(new ChessPosition(0,0))) whiteQueenSideCastle = false;
+        if (move.to.equals(new ChessPosition(7,0))) whiteKingSideCastle = false;
+        if (move.to.equals(new ChessPosition(0,7))) blackQueenSideCastle = false;
+        if (move.to.equals(new ChessPosition(7,7))) blackKingSideCastle = false;
     }
 
     private void updateEnPassantTarget(ChessMove move, ChessPiece movingPiece) {
-        enPassantTarget = null;
-
-        // Check for pawn double move
-        if (movingPiece.getType() == PieceType.PAWN && Math.abs(move.to.rank - move.from.rank) == 2) {
-            int targetRank = (move.from.rank + move.to.rank) / 2;
-            enPassantTarget = new ChessPosition(move.from.file, targetRank);
+        enPassantTarget = null; // Reset en passant target by default
+        if (movingPiece != null && movingPiece.getType() == PieceType.PAWN && Math.abs(move.to.rank - move.from.rank) == 2) {
+            enPassantTarget = new ChessPosition(move.from.file, (move.from.rank + move.to.rank) / 2);
         }
     }
 
     public boolean isLegalMove(ChessMove move) {
         ChessPiece piece = getPiece(move.from);
         if (piece == null) return false;
-        if ((piece.isWhite() && currentTurn != PieceColor.WHITE) ||
-                (piece.isBlack() && currentTurn != PieceColor.BLACK)) return false;
+        if ((piece.isWhite() && currentTurn != PieceColor.WHITE) || (piece.isBlack() && currentTurn != PieceColor.BLACK)) return false;
 
-        // Check if move is pseudo-legal
-        if (!isPseudoLegalMove(move)) return false;
+        if (!isPseudoLegalMove(move, piece)) return false;
 
-        // Check if move leaves king in check
+        // For castling, ensure king doesn't pass through check
+        if (move.isCastling) {
+            int rank = move.from.rank;
+            int kingFile = move.from.file;
+            int rookFile = (move.to.file == 6) ? 7 : 0;
+            int kingToFile = move.to.file;
+            int kingPassFile = (kingFile + kingToFile) / 2;
+
+            if (isSquareAttacked(new ChessPosition(kingFile, rank), currentTurn.opposite())) return false; // King is in check
+            if (isSquareAttacked(new ChessPosition(kingPassFile, rank), currentTurn.opposite())) return false; // King passes through check
+            // Final square check is handled by the general check below
+        }
+
+
         ChessBoard tempBoard = this.copy();
-        tempBoard.makeUncheckedMove(move);
+        tempBoard.makeUncheckedMove(move); // makeUncheckedMove is a simplified move for testing
         return !tempBoard.isInCheck(currentTurn);
     }
 
-    private boolean isPseudoLegalMove(ChessMove move) {
-        ChessPiece piece = getPiece(move.from);
+    private boolean isPseudoLegalMove(ChessMove move, ChessPiece piece) {
         if (piece == null) return false;
 
         ChessPiece targetPiece = getPiece(move.to);
         if (targetPiece != null && piece.isWhite() == targetPiece.isWhite()) {
-            return false; // Can't capture own piece
+            return false;
         }
 
         return switch (piece.getType()) {
@@ -227,50 +200,33 @@ public class ChessBoard {
 
     private boolean isValidPawnMove(ChessMove move, ChessPiece piece) {
         int direction = piece.isWhite() ? 1 : -1;
+        int startRank = piece.isWhite() ? 1 : 6;
         int fileDiff = move.to.file - move.from.file;
         int rankDiff = move.to.rank - move.from.rank;
 
-        // Forward move
-        if (fileDiff == 0) {
-            if (rankDiff == direction && getPiece(move.to) == null) {
-                return true; // One square forward
-            }
-            if (rankDiff == 2 * direction &&
-                    move.from.rank == (piece.isWhite() ? 1 : 6) &&
-                    getPiece(move.to) == null &&
-                    getPiece(new ChessPosition(move.from.file, move.from.rank + direction)) == null) {
-                return true; // Two squares forward from starting position
-            }
+        if (fileDiff == 0) { // Forward move
+            if (getPiece(move.to) != null) return false; // Path blocked
+            if (rankDiff == direction) return true; // One square
+            if (rankDiff == 2 * direction && move.from.rank == startRank && getPiece(new ChessPosition(move.from.file, move.from.rank + direction)) == null) return true; // Two squares
+        } else if (Math.abs(fileDiff) == 1 && rankDiff == direction) { // Capture
+            if (getPiece(move.to) != null && getPiece(move.to).isWhite() != piece.isWhite()) return true; // Regular capture
+            if (move.to.equals(enPassantTarget)) return true; // En passant
         }
-
-        // Diagonal capture
-        if (Math.abs(fileDiff) == 1 && rankDiff == direction) {
-            ChessPiece targetPiece = getPiece(move.to);
-            if (targetPiece != null && piece.isWhite() != targetPiece.isWhite()) {
-                return true; // Regular capture
-            }
-            if (enPassantTarget != null && move.to.equals(enPassantTarget)) {
-                return true; // En passant
-            }
-        }
-
         return false;
     }
 
     private boolean isValidRookMove(ChessMove move) {
-        return (move.from.file == move.to.file || move.from.rank == move.to.rank) &&
-                isPathClear(move.from, move.to);
+        return (move.from.file == move.to.file || move.from.rank == move.to.rank) && isPathClear(move.from, move.to);
     }
 
     private boolean isValidKnightMove(ChessMove move) {
         int fileDiff = Math.abs(move.to.file - move.from.file);
         int rankDiff = Math.abs(move.to.rank - move.from.rank);
-        return (fileDiff == 2 && rankDiff == 1) || (fileDiff == 1 && rankDiff == 2);
+        return (fileDiff == 1 && rankDiff == 2) || (fileDiff == 2 && rankDiff == 1);
     }
 
     private boolean isValidBishopMove(ChessMove move) {
-        return Math.abs(move.to.file - move.from.file) == Math.abs(move.to.rank - move.from.rank) &&
-                isPathClear(move.from, move.to);
+        return Math.abs(move.to.file - move.from.file) == Math.abs(move.to.rank - move.from.rank) && isPathClear(move.from, move.to);
     }
 
     private boolean isValidQueenMove(ChessMove move) {
@@ -281,205 +237,180 @@ public class ChessBoard {
         int fileDiff = Math.abs(move.to.file - move.from.file);
         int rankDiff = Math.abs(move.to.rank - move.from.rank);
 
-        // Normal king move
-        if (fileDiff <= 1 && rankDiff <= 1) {
-            return true;
-        }
+        if (fileDiff <= 1 && rankDiff <= 1) return true; // Normal move
 
-        // Castling
+        // Castling (pre-check path and rights, isLegalMove will do full check validation)
         if (rankDiff == 0 && fileDiff == 2 && !isInCheck(piece.isWhite() ? PieceColor.WHITE : PieceColor.BLACK)) {
+            boolean kingSide = move.to.file == 6;
+            boolean queenSide = move.to.file == 2;
+
             if (piece.isWhite() && move.from.rank == 0) {
-                if (move.to.file == 6 && whiteKingSideCastle &&
-                        isPathClear(move.from, new ChessPosition(7, 0))) {
-                    return true; // White king-side castling
-                }
-                if (move.to.file == 2 && whiteQueenSideCastle &&
-                        isPathClear(move.from, new ChessPosition(0, 0))) {
-                    return true; // White queen-side castling
-                }
+                if (kingSide && whiteKingSideCastle && isPathClear(move.from, new ChessPosition(7, 0))) return true;
+                if (queenSide && whiteQueenSideCastle && isPathClear(move.from, new ChessPosition(0, 0))) return true;
             } else if (piece.isBlack() && move.from.rank == 7) {
-                if (move.to.file == 6 && blackKingSideCastle &&
-                        isPathClear(move.from, new ChessPosition(7, 7))) {
-                    return true; // Black king-side castling
-                }
-                if (move.to.file == 2 && blackQueenSideCastle &&
-                        isPathClear(move.from, new ChessPosition(0, 7))) {
-                    return true; // Black queen-side castling
-                }
+                if (kingSide && blackKingSideCastle && isPathClear(move.from, new ChessPosition(7, 7))) return true;
+                if (queenSide && blackQueenSideCastle && isPathClear(move.from, new ChessPosition(0, 7))) return true;
             }
         }
-
         return false;
     }
 
-    private boolean isPathClear(ChessPosition from, ChessPosition to) {
-        int fileStep = Integer.compare(to.file, from.file);
-        int rankStep = Integer.compare(to.rank, from.rank);
 
-        int currentFile = from.file + fileStep;
-        int currentRank = from.rank + rankStep;
+    private boolean isPathClear(ChessPosition from, ChessPosition to) {
+        int dFile = Integer.compare(to.file, from.file);
+        int dRank = Integer.compare(to.rank, from.rank);
+        int currentFile = from.file + dFile;
+        int currentRank = from.rank + dRank;
 
         while (currentFile != to.file || currentRank != to.rank) {
-            if (getPiece(new ChessPosition(currentFile, currentRank)) != null) {
-                return false;
-            }
-            currentFile += fileStep;
-            currentRank += rankStep;
+            if (getPiece(new ChessPosition(currentFile, currentRank)) != null) return false;
+            currentFile += dFile;
+            currentRank += dRank;
         }
-
         return true;
     }
 
     public boolean isInCheck(PieceColor color) {
         ChessPosition kingPos = findKing(color);
-        if (kingPos == null) return false;
-
+        if (kingPos == null) return true; // Should not happen in a valid game
         return isSquareAttacked(kingPos, color.opposite());
     }
 
     public boolean isSquareAttacked(ChessPosition pos, PieceColor attackingColor) {
         for (int i = 0; i < 64; i++) {
-            ChessPiece piece = board[i];
-            if (piece != null &&
-                    ((attackingColor == PieceColor.WHITE && piece.isWhite()) ||
-                            (attackingColor == PieceColor.BLACK && piece.isBlack()))) {
-
-                ChessPosition piecePos = ChessPosition.fromIndex(i);
-                ChessMove attackMove = new ChessMove(piecePos, pos);
-                if (isPseudoLegalMove(attackMove)) {
-                    return true;
+            ChessPiece attacker = board[i];
+            if (attacker != null && ((attackingColor == PieceColor.WHITE && attacker.isWhite()) || (attackingColor == PieceColor.BLACK && attacker.isBlack()))) {
+                ChessPosition attackerPos = ChessPosition.fromIndex(i);
+                // Use a simplified move for attack check; isPseudoLegalMove doesn't care about currentTurn
+                ChessMove attackAttempt = new ChessMove(attackerPos, pos);
+                if (isPseudoLegalMove(attackAttempt, attacker)) {
+                    // For pawns, ensure it's a capture move direction
+                    if (attacker.getType() == PieceType.PAWN) {
+                        int direction = attacker.isWhite() ? 1 : -1;
+                        if (pos.rank - attackerPos.rank == direction && Math.abs(pos.file - attackerPos.file) == 1) {
+                            return true;
+                        }
+                    } else {
+                        return true;
+                    }
                 }
             }
         }
         return false;
     }
 
+
     public ChessPosition findKing(PieceColor color) {
-        ChessPiece king = color == PieceColor.WHITE ? ChessPiece.WHITE_KING : ChessPiece.BLACK_KING;
+        ChessPiece kingToFind = (color == PieceColor.WHITE) ? ChessPiece.WHITE_KING : ChessPiece.BLACK_KING;
         for (int i = 0; i < 64; i++) {
-            if (board[i] == king) {
-                return ChessPosition.fromIndex(i);
-            }
+            if (board[i] == kingToFind) return ChessPosition.fromIndex(i);
         }
         return null;
     }
 
     public List<ChessMove> getLegalMoves() {
-        List<ChessMove> legalMoves = new ArrayList<>();
-
+        List<ChessMove> allPseudoLegalMoves = new ArrayList<>();
         for (int i = 0; i < 64; i++) {
             ChessPiece piece = board[i];
-            if (piece != null &&
-                    ((currentTurn == PieceColor.WHITE && piece.isWhite()) ||
-                            (currentTurn == PieceColor.BLACK && piece.isBlack()))) {
-
+            if (piece != null && ((currentTurn == PieceColor.WHITE && piece.isWhite()) || (currentTurn == PieceColor.BLACK && piece.isBlack()))) {
                 ChessPosition from = ChessPosition.fromIndex(i);
-                List<ChessMove> pseudoLegalMoves = generatePseudoLegalMoves(from, piece);
-
-                for (ChessMove move : pseudoLegalMoves) {
-                    if (isLegalMove(move)) {
-                        legalMoves.add(move);
-                    }
-                }
+                generatePseudoLegalMovesForPiece(from, piece, allPseudoLegalMoves);
             }
         }
 
+        List<ChessMove> legalMoves = new ArrayList<>();
+        for (ChessMove pseudoMove : allPseudoLegalMoves) {
+            // Add flags like isCheck and isCheckmate after making the move on a temp board
+            ChessBoard tempBoard = this.copy();
+            tempBoard.makeUncheckedMove(pseudoMove); // Apply the basic move
+
+            if (!tempBoard.isInCheck(currentTurn)) { // If own king is NOT in check after this move
+                boolean isCheck = tempBoard.isInCheck(currentTurn.opposite());
+                boolean isCheckmate = false;
+                if (isCheck) {
+                    // Check for checkmate
+                    tempBoard.currentTurn = currentTurn.opposite(); // Switch turn to opponent for their legal moves
+                    if (tempBoard.getLegalMoves().isEmpty()) {
+                        isCheckmate = true;
+                    }
+                }
+
+                ChessMove finalMove = new ChessMove(
+                        pseudoMove.from, pseudoMove.to, pseudoMove.promotionPiece,
+                        pseudoMove.isCapture, pseudoMove.isEnPassant, pseudoMove.isCastling,
+                        isCheck, isCheckmate
+                );
+                legalMoves.add(finalMove);
+            }
+        }
         return legalMoves;
     }
 
-    private List<ChessMove> generatePseudoLegalMoves(ChessPosition from, ChessPiece piece) {
-        List<ChessMove> moves = new ArrayList<>();
 
+    private void generatePseudoLegalMovesForPiece(ChessPosition from, ChessPiece piece, List<ChessMove> moves) {
         switch (piece.getType()) {
-            case PAWN -> generatePawnMoves(from, piece, moves);
-            case ROOK -> generateRookMoves(from, moves);
-            case KNIGHT -> generateKnightMoves(from, moves);
-            case BISHOP -> generateBishopMoves(from, moves);
-            case QUEEN -> generateQueenMoves(from, moves);
-            case KING -> generateKingMoves(from, piece, moves);
+            case PAWN: generatePawnMoves(from, piece, moves); break;
+            case ROOK: generateSlidingPieceMoves(from, piece, new int[][]{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}, 7, moves); break;
+            case KNIGHT: generateKnightMoves(from, piece, moves); break;
+            case BISHOP: generateSlidingPieceMoves(from, piece, new int[][]{{1, 1}, {1, -1}, {-1, 1}, {-1, -1}}, 7, moves); break;
+            case QUEEN: generateSlidingPieceMoves(from, piece, new int[][]{{0, 1}, {0, -1}, {1, 0}, {-1, 0}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}}, 7, moves); break;
+            case KING: generateKingMoves(from, piece, moves); break;
         }
-
-        return moves;
     }
 
     private void generatePawnMoves(ChessPosition from, ChessPiece piece, List<ChessMove> moves) {
         int direction = piece.isWhite() ? 1 : -1;
+        int startRank = piece.isWhite() ? 1 : 6;
+        int promotionRank = piece.isWhite() ? 7 : 0;
 
-        // Forward moves
-        ChessPosition oneForward = new ChessPosition(from.file, from.rank + direction);
-        if (oneForward.isValid() && getPiece(oneForward) == null) {
-            if (oneForward.rank == (piece.isWhite() ? 7 : 0)) {
-                // Promotion
-                for (PieceType promotionType : new PieceType[]{PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT}) {
-                    moves.add(new ChessMove(from, oneForward, promotionType, false, false, false, false, false));
+        // Forward one square
+        ChessPosition to1 = new ChessPosition(from.file, from.rank + direction);
+        if (to1.isValid() && getPiece(to1) == null) {
+            addPawnMove(from, to1, piece, null, false, false, moves, promotionRank);
+            // Forward two squares
+            if (from.rank == startRank) {
+                ChessPosition to2 = new ChessPosition(from.file, from.rank + 2 * direction);
+                if (to2.isValid() && getPiece(to2) == null) {
+                    moves.add(new ChessMove(from, to2));
                 }
-            } else {
-                moves.add(new ChessMove(from, oneForward));
-            }
-
-            // Two squares forward
-            ChessPosition twoForward = new ChessPosition(from.file, from.rank + 2 * direction);
-            if (twoForward.isValid() && getPiece(twoForward) == null &&
-                    from.rank == (piece.isWhite() ? 1 : 6)) {
-                moves.add(new ChessMove(from, twoForward));
             }
         }
-
         // Captures
         for (int fileOffset : new int[]{-1, 1}) {
-            ChessPosition capturePos = new ChessPosition(from.file + fileOffset, from.rank + direction);
-            if (capturePos.isValid()) {
-                ChessPiece targetPiece = getPiece(capturePos);
-                if (targetPiece != null && piece.isWhite() != targetPiece.isWhite()) {
-                    if (capturePos.rank == (piece.isWhite() ? 7 : 0)) {
-                        // Promotion with capture
-                        for (PieceType promotionType : new PieceType[]{PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT}) {
-                            moves.add(new ChessMove(from, capturePos, promotionType, true, false, false, false, false));
-                        }
-                    } else {
-                        moves.add(new ChessMove(from, capturePos, null, true, false, false, false, false));
-                    }
-                }
-
-                // En passant
-                if (enPassantTarget != null && capturePos.equals(enPassantTarget)) {
-                    moves.add(new ChessMove(from, capturePos, null, true, true, false, false, false));
+            ChessPosition toCapture = new ChessPosition(from.file + fileOffset, from.rank + direction);
+            if (toCapture.isValid()) {
+                ChessPiece target = getPiece(toCapture);
+                if (target != null && target.isWhite() != piece.isWhite()) {
+                    addPawnMove(from, toCapture, piece, target, true, false, moves, promotionRank);
+                } else if (toCapture.equals(enPassantTarget)) { // En passant
+                    addPawnMove(from, toCapture, piece, null, true, true, moves, promotionRank);
                 }
             }
         }
     }
 
-    private void generateRookMoves(ChessPosition from, List<ChessMove> moves) {
-        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        generateSlidingMoves(from, directions, moves);
+    private void addPawnMove(ChessPosition from, ChessPosition to, ChessPiece piece, ChessPiece captured, boolean isCapture, boolean isEnPassant, List<ChessMove> moves, int promotionRank) {
+        if (to.rank == promotionRank) {
+            moves.add(new ChessMove(from, to, PieceType.QUEEN, isCapture, isEnPassant, false, false, false));
+            moves.add(new ChessMove(from, to, PieceType.ROOK, isCapture, isEnPassant, false, false, false));
+            moves.add(new ChessMove(from, to, PieceType.BISHOP, isCapture, isEnPassant, false, false, false));
+            moves.add(new ChessMove(from, to, PieceType.KNIGHT, isCapture, isEnPassant, false, false, false));
+        } else {
+            moves.add(new ChessMove(from, to, null, isCapture, isEnPassant, false, false, false));
+        }
     }
 
-    private void generateBishopMoves(ChessPosition from, List<ChessMove> moves) {
-        int[][] directions = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
-        generateSlidingMoves(from, directions, moves);
-    }
 
-    private void generateQueenMoves(ChessPosition from, List<ChessMove> moves) {
-        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
-        generateSlidingMoves(from, directions, moves);
-    }
-
-    private void generateSlidingMoves(ChessPosition from, int[][] directions, List<ChessMove> moves) {
-        ChessPiece piece = getPiece(from);
-
-        for (int[] direction : directions) {
-            for (int distance = 1; distance < 8; distance++) {
-                int newFile = from.file + direction[0] * distance;
-                int newRank = from.rank + direction[1] * distance;
-
-                ChessPosition to = new ChessPosition(newFile, newRank);
+    private void generateSlidingPieceMoves(ChessPosition from, ChessPiece piece, int[][] directions, int maxDistance, List<ChessMove> moves) {
+        for (int[] d : directions) {
+            for (int i = 1; i <= maxDistance; i++) {
+                ChessPosition to = new ChessPosition(from.file + d[0] * i, from.rank + d[1] * i);
                 if (!to.isValid()) break;
-
-                ChessPiece targetPiece = getPiece(to);
-                if (targetPiece == null) {
+                ChessPiece target = getPiece(to);
+                if (target == null) {
                     moves.add(new ChessMove(from, to));
                 } else {
-                    if (piece.isWhite() != targetPiece.isWhite()) {
+                    if (target.isWhite() != piece.isWhite()) {
                         moves.add(new ChessMove(from, to, null, true, false, false, false, false));
                     }
                     break;
@@ -488,183 +419,155 @@ public class ChessBoard {
         }
     }
 
-    private void generateKnightMoves(ChessPosition from, List<ChessMove> moves) {
-        int[][] knightMoves = {{2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {1, -2}, {-1, 2}, {-1, -2}};
-        ChessPiece piece = getPiece(from);
-
-        for (int[] move : knightMoves) {
-            ChessPosition to = new ChessPosition(from.file + move[0], from.rank + move[1]);
+    private void generateKnightMoves(ChessPosition from, ChessPiece piece, List<ChessMove> moves) {
+        int[][] offsets = {{1, 2}, {1, -2}, {-1, 2}, {-1, -2}, {2, 1}, {2, -1}, {-2, 1}, {-2, -1}};
+        for (int[] offset : offsets) {
+            ChessPosition to = new ChessPosition(from.file + offset[0], from.rank + offset[1]);
             if (to.isValid()) {
-                ChessPiece targetPiece = getPiece(to);
-                if (targetPiece == null) {
-                    moves.add(new ChessMove(from, to));
-                } else if (piece.isWhite() != targetPiece.isWhite()) {
-                    moves.add(new ChessMove(from, to, null, true, false, false, false, false));
+                ChessPiece target = getPiece(to);
+                if (target == null || target.isWhite() != piece.isWhite()) {
+                    moves.add(new ChessMove(from, to, null, target != null, false, false, false, false));
                 }
             }
         }
     }
 
     private void generateKingMoves(ChessPosition from, ChessPiece piece, List<ChessMove> moves) {
-        // Normal king moves
-        for (int fileOffset = -1; fileOffset <= 1; fileOffset++) {
-            for (int rankOffset = -1; rankOffset <= 1; rankOffset++) {
-                if (fileOffset == 0 && rankOffset == 0) continue;
-
-                ChessPosition to = new ChessPosition(from.file + fileOffset, from.rank + rankOffset);
+        // Normal moves
+        for (int df = -1; df <= 1; df++) {
+            for (int dr = -1; dr <= 1; dr++) {
+                if (df == 0 && dr == 0) continue;
+                ChessPosition to = new ChessPosition(from.file + df, from.rank + dr);
                 if (to.isValid()) {
-                    ChessPiece targetPiece = getPiece(to);
-                    if (targetPiece == null) {
-                        moves.add(new ChessMove(from, to));
-                    } else if (piece.isWhite() != targetPiece.isWhite()) {
-                        moves.add(new ChessMove(from, to, null, true, false, false, false, false));
+                    ChessPiece target = getPiece(to);
+                    if (target == null || target.isWhite() != piece.isWhite()) {
+                        moves.add(new ChessMove(from, to, null, target != null, false, false, false, false));
                     }
                 }
             }
         }
+        // Castling
+        if (isInCheck(currentTurn)) return; // Cannot castle out of check
 
-        // Castling moves
-        if (!isInCheck(piece.isWhite() ? PieceColor.WHITE : PieceColor.BLACK)) {
-            if (piece.isWhite() && from.equals(new ChessPosition(4, 0))) {
-                // White castling
-                if (whiteKingSideCastle && isPathClear(from, new ChessPosition(7, 0))) {
-                    moves.add(new ChessMove(from, new ChessPosition(6, 0), null, false, false, true, false, false));
+        int rank = piece.isWhite() ? 0 : 7;
+        if (from.file == 4 && from.rank == rank) { // King is on its original square
+            // King-side
+            boolean canKingSide = piece.isWhite() ? whiteKingSideCastle : blackKingSideCastle;
+            if (canKingSide && getPiece(new ChessPosition(5, rank)) == null && getPiece(new ChessPosition(6, rank)) == null) {
+                if (!isSquareAttacked(new ChessPosition(5, rank), piece.isWhite() ? PieceColor.BLACK : PieceColor.WHITE)) {
+                    moves.add(new ChessMove(from, new ChessPosition(6, rank), null, false, false, true, false, false));
                 }
-                if (whiteQueenSideCastle && isPathClear(from, new ChessPosition(0, 0))) {
-                    moves.add(new ChessMove(from, new ChessPosition(2, 0), null, false, false, true, false, false));
-                }
-            } else if (piece.isBlack() && from.equals(new ChessPosition(4, 7))) {
-                // Black castling
-                if (blackKingSideCastle && isPathClear(from, new ChessPosition(7, 7))) {
-                    moves.add(new ChessMove(from, new ChessPosition(6, 7), null, false, false, true, false, false));
-                }
-                if (blackQueenSideCastle && isPathClear(from, new ChessPosition(0, 7))) {
-                    moves.add(new ChessMove(from, new ChessPosition(2, 7), null, false, false, true, false, false));
+            }
+            // Queen-side
+            boolean canQueenSide = piece.isWhite() ? whiteQueenSideCastle : blackQueenSideCastle;
+            if (canQueenSide && getPiece(new ChessPosition(3, rank)) == null && getPiece(new ChessPosition(2, rank)) == null && getPiece(new ChessPosition(1, rank)) == null) {
+                if (!isSquareAttacked(new ChessPosition(3, rank), piece.isWhite() ? PieceColor.BLACK : PieceColor.WHITE)) {
+                    moves.add(new ChessMove(from, new ChessPosition(2, rank), null, false, false, true, false, false));
                 }
             }
         }
     }
 
     private void updateGameState() {
-        List<ChessMove> legalMoves = getLegalMoves();
         boolean inCheck = isInCheck(currentTurn);
+        List<ChessMove> legalMovesCurrentPlayer = getLegalMovesForColor(currentTurn); // Need a specific method for this to avoid recursion
 
-        if (legalMoves.isEmpty()) {
+        if (legalMovesCurrentPlayer.isEmpty()) {
             if (inCheck) {
-                gameState = currentTurn == PieceColor.WHITE ? GameState.CHECKMATE_BLACK_WINS : GameState.CHECKMATE_WHITE_WINS;
+                gameState = (currentTurn == PieceColor.WHITE) ? GameState.CHECKMATE_BLACK_WINS : GameState.CHECKMATE_WHITE_WINS;
             } else {
                 gameState = GameState.STALEMATE;
             }
         } else if (inCheck) {
-            gameState = currentTurn == PieceColor.WHITE ? GameState.CHECK_WHITE : GameState.CHECK_BLACK;
+            gameState = (currentTurn == PieceColor.WHITE) ? GameState.CHECK_WHITE : GameState.CHECK_BLACK;
         } else {
-            gameState = currentTurn == PieceColor.WHITE ? GameState.WHITE_TURN : GameState.BLACK_TURN;
+            gameState = (currentTurn == PieceColor.WHITE) ? GameState.WHITE_TURN : GameState.BLACK_TURN;
         }
 
-        // Check for draws
-        if (halfMoveClock >= 100) {
-            gameState = GameState.DRAW_FIFTY_MOVE;
-        } else if (isThreefoldRepetition()) {
-            gameState = GameState.DRAW_THREEFOLD;
-        } else if (isInsufficientMaterial()) {
-            gameState = GameState.DRAW_INSUFFICIENT;
+        if (gameState == GameState.WHITE_TURN || gameState == GameState.BLACK_TURN || gameState == GameState.CHECK_WHITE || gameState == GameState.CHECK_BLACK) {
+            if (halfMoveClock >= 100) gameState = GameState.DRAW_FIFTY_MOVE;
+            else if (isThreefoldRepetition()) gameState = GameState.DRAW_THREEFOLD;
+            else if (isInsufficientMaterial()) gameState = GameState.DRAW_INSUFFICIENT;
         }
     }
 
+    private List<ChessMove> getLegalMovesForColor(PieceColor color) {
+        // Temporarily set currentTurn to the color to generate its moves, then revert.
+        PieceColor originalTurn = this.currentTurn;
+        this.currentTurn = color;
+        List<ChessMove> legalMoves = getLegalMoves(); // This will generate for the new currentTurn
+        this.currentTurn = originalTurn; // Revert
+        return legalMoves;
+    }
+
+
     private boolean isThreefoldRepetition() {
-        String currentPosition = toFEN().split(" ")[0]; // Just the board position part
-        int count = 0;
-        for (String position : positionHistory) {
-            if (position.split(" ")[0].equals(currentPosition)) {
-                count++;
-                if (count >= 3) return true;
-            }
-        }
-        return false;
+        String currentBoardFen = boardToFENBoardPart();
+        long count = positionHistoryFenOnly.stream().filter(fen -> fen.equals(currentBoardFen)).count();
+        return count >= 3;
     }
 
     private boolean isInsufficientMaterial() {
-        int whitePieces = 0, blackPieces = 0;
-        boolean whiteBishop = false, blackBishop = false;
-        boolean whiteKnight = false, blackKnight = false;
+        List<ChessPiece> piecesOnBoard = new ArrayList<>();
+        for (ChessPiece p : board) {
+            if (p != null) piecesOnBoard.add(p);
+        }
 
-        for (ChessPiece piece : board) {
-            if (piece != null) {
-                switch (piece.getType()) {
-                    case KING -> {}
-                    case QUEEN, ROOK, PAWN -> {
-                        return false; // Sufficient material
-                    }
-                    case BISHOP -> {
-                        if (piece.isWhite()) {
-                            whiteBishop = true;
-                            whitePieces++;
-                        } else {
-                            blackBishop = true;
-                            blackPieces++;
-                        }
-                    }
-                    case KNIGHT -> {
-                        if (piece.isWhite()) {
-                            whiteKnight = true;
-                            whitePieces++;
-                        } else {
-                            blackKnight = true;
-                            blackPieces++;
-                        }
-                    }
-                }
+        if (piecesOnBoard.size() <= 2) return true; // K vs K
+
+        long whiteKnights = piecesOnBoard.stream().filter(p -> p == ChessPiece.WHITE_KNIGHT).count();
+        long blackKnights = piecesOnBoard.stream().filter(p -> p == ChessPiece.BLACK_KNIGHT).count();
+        long whiteBishops = piecesOnBoard.stream().filter(p -> p == ChessPiece.WHITE_BISHOP).count();
+        long blackBishops = piecesOnBoard.stream().filter(p -> p == ChessPiece.BLACK_BISHOP).count();
+        long whiteHeavy = piecesOnBoard.stream().filter(p -> p == ChessPiece.WHITE_QUEEN || p == ChessPiece.WHITE_ROOK || p == ChessPiece.WHITE_PAWN).count();
+        long blackHeavy = piecesOnBoard.stream().filter(p -> p == ChessPiece.BLACK_QUEEN || p == ChessPiece.BLACK_ROOK || p == ChessPiece.BLACK_PAWN).count();
+
+        if (whiteHeavy > 0 || blackHeavy > 0) return false; // Pawns or heavy pieces exist
+
+        // K vs K+N or K vs K+B
+        if (whiteKnights + whiteBishops <= 1 && blackKnights + blackBishops == 0) return true;
+        if (blackKnights + blackBishops <= 1 && whiteKnights + whiteBishops == 0) return true;
+
+        // K+B vs K+B (bishops on same color) - This is complex, simplified check:
+        if (whiteBishops == 1 && blackBishops == 1 && whiteKnights == 0 && blackKnights == 0) {
+            ChessPosition wBishopPos = null, bBishopPos = null;
+            for(int i=0; i<64; ++i) {
+                if (board[i] == ChessPiece.WHITE_BISHOP) wBishopPos = ChessPosition.fromIndex(i);
+                if (board[i] == ChessPiece.BLACK_BISHOP) bBishopPos = ChessPosition.fromIndex(i);
+            }
+            if (wBishopPos != null && bBishopPos != null) {
+                boolean wBishopLight = (wBishopPos.file + wBishopPos.rank) % 2 == 0;
+                boolean bBishopLight = (bBishopPos.file + bBishopPos.rank) % 2 == 0;
+                if (wBishopLight == bBishopLight) return true;
             }
         }
 
-        // King vs King
-        if (whitePieces == 0 && blackPieces == 0) return true;
-
-        // King + Bishop vs King or King + Knight vs King
-        if ((whitePieces == 1 && blackPieces == 0 && (whiteBishop || whiteKnight)) ||
-                (blackPieces == 1 && whitePieces == 0 && (blackBishop || blackKnight))) {
-            return true;
-        }
 
         return false;
     }
 
     private void makeUncheckedMove(ChessMove move) {
-        // Simplified move execution for check testing
         ChessPiece piece = getPiece(move.from);
         setPiece(move.to, piece);
         setPiece(move.from, null);
-
-        if (move.isEnPassant) {
-            ChessPosition capturedPawnPos = new ChessPosition(move.to.file, move.from.rank);
-            setPiece(capturedPawnPos, null);
-        }
-
+        if (move.isEnPassant) setPiece(new ChessPosition(move.to.file, move.from.rank), null);
         if (move.isCastling) {
             if (move.to.file == 6) {
-                ChessPosition rookFrom = new ChessPosition(7, move.from.rank);
-                ChessPosition rookTo = new ChessPosition(5, move.from.rank);
-                setPiece(rookTo, getPiece(rookFrom));
-                setPiece(rookFrom, null);
+                setPiece(new ChessPosition(5, move.from.rank), getPiece(new ChessPosition(7, move.from.rank)));
+                setPiece(new ChessPosition(7, move.from.rank), null);
             } else {
-                ChessPosition rookFrom = new ChessPosition(0, move.from.rank);
-                ChessPosition rookTo = new ChessPosition(3, move.from.rank);
-                setPiece(rookTo, getPiece(rookFrom));
-                setPiece(rookFrom, null);
+                setPiece(new ChessPosition(3, move.from.rank), getPiece(new ChessPosition(0, move.from.rank)));
+                setPiece(new ChessPosition(0, move.from.rank), null);
             }
         }
-
-        if (move.promotionPiece != null) {
-            ChessPiece promotedPiece = ChessPiece.fromColorAndType(
-                    piece.isWhite() ? PieceColor.WHITE : PieceColor.BLACK,
-                    move.promotionPiece
-            );
-            setPiece(move.to, promotedPiece);
+        if (move.promotionPiece != null && piece != null) {
+            setPiece(move.to, ChessPiece.fromColorAndType(piece.isWhite() ? PieceColor.WHITE : PieceColor.BLACK, move.promotionPiece));
         }
     }
 
     public ChessBoard copy() {
-        ChessBoard copy = new ChessBoard();
+        ChessBoard copy = new ChessBoard(); // This will call setupInitialPosition
+        // Manual copy of state:
         System.arraycopy(this.board, 0, copy.board, 0, 64);
         copy.currentTurn = this.currentTurn;
         copy.gameState = this.gameState;
@@ -672,18 +575,16 @@ public class ChessBoard {
         copy.whiteQueenSideCastle = this.whiteQueenSideCastle;
         copy.blackKingSideCastle = this.blackKingSideCastle;
         copy.blackQueenSideCastle = this.blackQueenSideCastle;
-        copy.enPassantTarget = this.enPassantTarget;
+        copy.enPassantTarget = this.enPassantTarget; // This is a ChessPosition, immutable
         copy.halfMoveClock = this.halfMoveClock;
         copy.fullMoveNumber = this.fullMoveNumber;
-        copy.moveHistory = new ArrayList<>(this.moveHistory);
-        copy.positionHistory = new ArrayList<>(this.positionHistory);
+        copy.moveHistory = new ArrayList<>(this.moveHistory); // ChessMove is immutable
+        copy.positionHistoryFenOnly = new ArrayList<>(this.positionHistoryFenOnly); // String is immutable
         return copy;
     }
 
-    public String toFEN() {
+    private String boardToFENBoardPart() {
         StringBuilder fen = new StringBuilder();
-
-        // Board position
         for (int rank = 7; rank >= 0; rank--) {
             int emptyCount = 0;
             for (int file = 0; file < 8; file++) {
@@ -691,44 +592,35 @@ public class ChessBoard {
                 if (piece == null) {
                     emptyCount++;
                 } else {
-                    if (emptyCount > 0) {
-                        fen.append(emptyCount);
-                        emptyCount = 0;
-                    }
+                    if (emptyCount > 0) fen.append(emptyCount);
+                    emptyCount = 0;
                     fen.append(pieceToFENChar(piece));
                 }
             }
-            if (emptyCount > 0) {
-                fen.append(emptyCount);
-            }
-            if (rank > 0) {
-                fen.append('/');
-            }
+            if (emptyCount > 0) fen.append(emptyCount);
+            if (rank > 0) fen.append('/');
         }
-
-        // Active color
-        fen.append(' ').append(currentTurn == PieceColor.WHITE ? 'w' : 'b');
-
-        // Castling rights
-        fen.append(' ');
-        String castling = "";
-        if (whiteKingSideCastle) castling += "K";
-        if (whiteQueenSideCastle) castling += "Q";
-        if (blackKingSideCastle) castling += "k";
-        if (blackQueenSideCastle) castling += "q";
-        fen.append(castling.isEmpty() ? "-" : castling);
-
-        // En passant target
-        fen.append(' ').append(enPassantTarget != null ? enPassantTarget.toNotation() : "-");
-
-        // Half-move clock and full-move number
-        fen.append(' ').append(halfMoveClock).append(' ').append(fullMoveNumber);
-
         return fen.toString();
     }
 
+    public String toFEN() {
+        String boardPart = boardToFENBoardPart();
+        String turnPart = (currentTurn == PieceColor.WHITE ? "w" : "b");
+        String castlingPart = "";
+        if (whiteKingSideCastle) castlingPart += "K";
+        if (whiteQueenSideCastle) castlingPart += "Q";
+        if (blackKingSideCastle) castlingPart += "k";
+        if (blackQueenSideCastle) castlingPart += "q";
+        if (castlingPart.isEmpty()) castlingPart = "-";
+        String enPassantPart = (enPassantTarget != null ? enPassantTarget.toNotation() : "-");
+
+        return String.format("%s %s %s %s %d %d", boardPart, turnPart, castlingPart, enPassantPart, halfMoveClock, fullMoveNumber);
+    }
+
+
     private char pieceToFENChar(ChessPiece piece) {
-        char base = switch (piece.getType()) {
+        if (piece == null) return ' '; // Should not happen if called correctly
+        char c = switch (piece.getType()) {
             case KING -> 'k';
             case QUEEN -> 'q';
             case ROOK -> 'r';
@@ -736,14 +628,14 @@ public class ChessBoard {
             case KNIGHT -> 'n';
             case PAWN -> 'p';
         };
-        return piece.isWhite() ? Character.toUpperCase(base) : base;
+        return piece.isWhite() ? Character.toUpperCase(c) : c;
     }
 
-    // Getters
     public PieceColor getCurrentTurn() { return currentTurn; }
     public GameState getGameState() { return gameState; }
-    public List<ChessMove> getMoveHistory() { return new ArrayList<>(moveHistory); }
+    public List<ChessMove> getMoveHistory() { return Collections.unmodifiableList(moveHistory); }
     public int getHalfMoveClock() { return halfMoveClock; }
     public int getFullMoveNumber() { return fullMoveNumber; }
     public ChessPosition getEnPassantTarget() { return enPassantTarget; }
+
 }

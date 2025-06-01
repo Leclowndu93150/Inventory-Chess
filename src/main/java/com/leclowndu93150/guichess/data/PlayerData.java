@@ -6,11 +6,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-// Player data management
 public class PlayerData {
     public UUID playerId;
     public String playerName;
-    public int elo = 1200; // Starting ELO
+    public int elo = 1200;
     public int gamesPlayed = 0;
     public int wins = 0;
     public int losses = 0;
@@ -22,6 +21,10 @@ public class PlayerData {
     public PlayerData(UUID playerId, String playerName) {
         this.playerId = playerId;
         this.playerName = playerName;
+    }
+
+    public int getElo() {
+        return elo;
     }
 
     public double getWinRate() {
