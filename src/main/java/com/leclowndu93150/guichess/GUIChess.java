@@ -26,11 +26,6 @@ public class GUIChess {
         NeoForge.EVENT_BUS.register(PlayerEventHandler.class);
     }
 
-    //TODO: when in a chess battle, timers are switched around (like not the times but the actual names too)
-    // I can control my opponents pieces and the selectors update on his screen. same on his side, he can control my pieces, play my turns,
-    // so i just think that the pieces on the board are switch around and just move them ? i think the challenge logic is having trouble showing the right side for the player
-    //
-
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         MinecraftServer server = event.getServer();
@@ -49,4 +44,6 @@ public class GUIChess {
         ChessCommands.registerCommands(event);
         LOGGER.info("Chess commands registered");
     }
+
+    //TODO Weird behaviour, basicaly our pieces are in the opposite side, for both players, timers are placed correctly but not the pieces
 }

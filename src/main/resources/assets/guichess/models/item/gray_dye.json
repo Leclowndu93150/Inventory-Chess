@@ -1,0 +1,266 @@
+{
+  "parent": "minecraft:item/generated",
+  "overrides": [
+    {
+      "model": "guichess:item/gray_dye_white_king",
+      "predicate": {
+        "minecraft:custom_model_data": 1000.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_white_queen",
+      "predicate": {
+        "minecraft:custom_model_data": 1001.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_white_rook",
+      "predicate": {
+        "minecraft:custom_model_data": 1002.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_white_bishop",
+      "predicate": {
+        "minecraft:custom_model_data": 1003.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_white_knight",
+      "predicate": {
+        "minecraft:custom_model_data": 1004.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_white_pawn",
+      "predicate": {
+        "minecraft:custom_model_data": 1005.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_black_king",
+      "predicate": {
+        "minecraft:custom_model_data": 1010.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_black_queen",
+      "predicate": {
+        "minecraft:custom_model_data": 1011.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_black_rook",
+      "predicate": {
+        "minecraft:custom_model_data": 1012.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_black_bishop",
+      "predicate": {
+        "minecraft:custom_model_data": 1013.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_black_knight",
+      "predicate": {
+        "minecraft:custom_model_data": 1014.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_black_pawn",
+      "predicate": {
+        "minecraft:custom_model_data": 1015.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_light_square",
+      "predicate": {
+        "minecraft:custom_model_data": 1020.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_dark_square",
+      "predicate": {
+        "minecraft:custom_model_data": 1021.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_selected_square",
+      "predicate": {
+        "minecraft:custom_model_data": 1022.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_valid_move",
+      "predicate": {
+        "minecraft:custom_model_data": 1023.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_last_move_from",
+      "predicate": {
+        "minecraft:custom_model_data": 1024.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_last_move_to",
+      "predicate": {
+        "minecraft:custom_model_data": 1025.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_check_square",
+      "predicate": {
+        "minecraft:custom_model_data": 1026.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_capture_move",
+      "predicate": {
+        "minecraft:custom_model_data": 1027.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_timer_white",
+      "predicate": {
+        "minecraft:custom_model_data": 1030.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_timer_black",
+      "predicate": {
+        "minecraft:custom_model_data": 1031.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_turn_white",
+      "predicate": {
+        "minecraft:custom_model_data": 1032.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_turn_black",
+      "predicate": {
+        "minecraft:custom_model_data": 1033.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_resign",
+      "predicate": {
+        "minecraft:custom_model_data": 1040.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_draw_offer",
+      "predicate": {
+        "minecraft:custom_model_data": 1041.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_draw_accept",
+      "predicate": {
+        "minecraft:custom_model_data": 1042.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_draw_decline",
+      "predicate": {
+        "minecraft:custom_model_data": 1043.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_settings",
+      "predicate": {
+        "minecraft:custom_model_data": 1050.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_exit",
+      "predicate": {
+        "minecraft:custom_model_data": 1051.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_spectate",
+      "predicate": {
+        "minecraft:custom_model_data": 1052.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_undo",
+      "predicate": {
+        "minecraft:custom_model_data": 1060.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_redo",
+      "predicate": {
+        "minecraft:custom_model_data": 1061.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_analyze",
+      "predicate": {
+        "minecraft:custom_model_data": 1062.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_hint",
+      "predicate": {
+        "minecraft:custom_model_data": 1063.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_challenge",
+      "predicate": {
+        "minecraft:custom_model_data": 1070.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_accept",
+      "predicate": {
+        "minecraft:custom_model_data": 1071.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_decline",
+      "predicate": {
+        "minecraft:custom_model_data": 1072.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_leaderboard",
+      "predicate": {
+        "minecraft:custom_model_data": 1073.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_promote_queen",
+      "predicate": {
+        "minecraft:custom_model_data": 1080.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_promote_rook",
+      "predicate": {
+        "minecraft:custom_model_data": 1081.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_promote_bishop",
+      "predicate": {
+        "minecraft:custom_model_data": 1082.0
+      }
+    },
+    {
+      "model": "guichess:item/gray_dye_promote_knight",
+      "predicate": {
+        "minecraft:custom_model_data": 1083.0
+      }
+    }
+  ],
+  "textures": {
+    "layer0": "minecraft:item/gray_dye"
+  }
+}

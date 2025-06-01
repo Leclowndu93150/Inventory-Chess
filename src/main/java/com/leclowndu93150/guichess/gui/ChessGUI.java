@@ -125,29 +125,35 @@ public class ChessGUI extends SimpleGui {
             if (!moveHistory.isEmpty()) {
                 ChessMove lastMove = moveHistory.get(moveHistory.size() - 1);
                 if (position.equals(lastMove.from)) {
-                    builder.setCustomModelData(BoardSquare.LAST_MOVE_FROM.modelData);
+                    //TODO FIX
+                    //builder.setCustomModelData(BoardSquare.LAST_MOVE_FROM.modelData);
                     isHighlighted = true;
                 } else if (position.equals(lastMove.to)) {
-                    builder.setCustomModelData(BoardSquare.LAST_MOVE_TO.modelData);
+                    //TODO FIX
+                    //builder.setCustomModelData(BoardSquare.LAST_MOVE_TO.modelData);
                     isHighlighted = true;
                 }
             }
 
             if (!isHighlighted) {
                 if (position.equals(selected)) {
-                    builder.setCustomModelData(BoardSquare.SELECTED_SQUARE.modelData);
+                    //TODO FIX
+                    //builder.setCustomModelData(BoardSquare.SELECTED_SQUARE.modelData);
                 } else if (validMoves.contains(position)) {
                     if (board.getPiece(position) != null) {
-                        builder.setCustomModelData(BoardSquare.CAPTURE_MOVE.modelData);
+                        //TODO FIX
+                        //builder.setCustomModelData(BoardSquare.CAPTURE_MOVE.modelData);
                     } else {
-                        builder.setCustomModelData(BoardSquare.VALID_MOVE.modelData);
+                        //TODO FIX
+                        //builder.setCustomModelData(BoardSquare.VALID_MOVE.modelData);
                     }
                 }
             }
 
             ChessPosition kingPos = board.findKing(board.getCurrentTurn());
             if (board.isInCheck(board.getCurrentTurn()) && position.equals(kingPos)) {
-                builder.setCustomModelData(BoardSquare.CHECK_SQUARE.modelData);
+                //TODO FIX
+                //builder.setCustomModelData(BoardSquare.CHECK_SQUARE.modelData);
             }
 
             final ChessPosition currentPos = position;
@@ -445,17 +451,33 @@ public class ChessGUI extends SimpleGui {
         });
     }
 
-    // Abstract-like methods that subclasses can override
+    // Methods that subclasses can override - updated to use per-player selection
     protected ChessBoard getBoard() {
         return game != null ? game.getBoard() : new ChessBoard();
     }
 
     protected Set<ChessPosition> getValidMoves() {
-        return game != null ? game.getValidMoves() : new HashSet<>();
+        if (game != null) {
+            try {
+                return game.getValidMoves(player);
+            } catch (Exception e) {
+                // Fallback for spectators or other edge cases
+                return new HashSet<>();
+            }
+        }
+        return new HashSet<>();
     }
 
     protected ChessPosition getSelectedSquare() {
-        return game != null ? game.getSelectedSquare() : null;
+        if (game != null) {
+            try {
+                return game.getSelectedSquare(player);
+            } catch (Exception e) {
+                // Fallback for spectators or other edge cases
+                return null;
+            }
+        }
+        return null;
     }
 
     protected List<ChessMove> getMoveHistory() {

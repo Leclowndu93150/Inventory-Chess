@@ -28,15 +28,32 @@ public class PracticeBoardGUI extends ChessGUI {
 
     public PracticeBoardGUI(ServerPlayer player) {
         super(player, null, PieceColor.WHITE); // Pass null for game since we're not using it
+
+        // Initialize practiceBoard AFTER calling super constructor
         this.practiceBoard = new ChessBoard();
+
+        // Override the title set by parent
         setTitle(Component.literal("§dPractice Board"));
     }
 
     public PracticeBoardGUI(ServerPlayer player, String fen) {
         super(player, null, PieceColor.WHITE);
+
+        // Initialize practiceBoard AFTER calling super constructor
         this.practiceBoard = new ChessBoard(); // TODO: Load from FEN when implemented
+
+        // Override the title set by parent
         setTitle(Component.literal("§dPosition Analysis"));
     }
+
+    @Override
+    public void afterOpen() {
+        super.afterOpen();
+        // Update the board after the GUI is fully opened
+        updateBoard();
+    }
+
+    // Override the constructor ordering issue by updating after initialization
 
     @Override
     protected ChessBoard getBoard() {
@@ -66,7 +83,8 @@ public class PracticeBoardGUI extends ChessGUI {
     @Override
     public void onClose() {
         // Don't reopen like normal chess games
-        super.onClose(); // Call SimpleGui.onClose(), not ChessGUI.onClose()
+        // Call SimpleGui.onClose() directly, not ChessGUI.onClose()
+        super.onClose();
     }
 
     @Override

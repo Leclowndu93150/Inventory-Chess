@@ -29,8 +29,12 @@ public class ChessGame {
     private int blackTimeLeft;
     private boolean gameActive = true;
 
-    private ChessPosition selectedSquare = null;
-    private Set<ChessPosition> validMoves = new HashSet<>();
+    // Per-player selection state instead of shared
+    private ChessPosition whiteSelectedSquare = null;
+    private Set<ChessPosition> whiteValidMoves = new HashSet<>();
+    private ChessPosition blackSelectedSquare = null;
+    private Set<ChessPosition> blackValidMoves = new HashSet<>();
+
     private boolean drawOffered = false;
     private ServerPlayer drawOfferer = null;
 
@@ -76,8 +80,7 @@ public class ChessGame {
 
         if (legalMoveToMake == null) {
             player.sendSystemMessage(Component.literal("§cInvalid move attempted. (Not found in legal moves)"));
-            selectedSquare = null;
-            validMoves.clear();
+            clearPlayerSelection(player);
             updatePlayerGUIs();
             return false;
         }
@@ -85,8 +88,8 @@ public class ChessGame {
         if (board.makeMove(legalMoveToMake)) {
             updateTimersAfterMove();
 
-            selectedSquare = null;
-            validMoves.clear();
+            // Clear all selections after move
+            clearAllSelections();
 
             if (drawOffered && getOpponent(player).equals(drawOfferer)) {
                 // If a move is made, any pending draw offer to the current player is implicitly declined.
@@ -97,7 +100,6 @@ public class ChessGame {
                     opponent.sendSystemMessage(Component.literal("§eYour draw offer was implicitly declined by " + player.getName().getString() + " making a move."));
                 }
             }
-
 
             checkGameEnd();
             updatePlayerGUIs();
@@ -127,7 +129,6 @@ public class ChessGame {
         }
 
         if (timeControl.initialSeconds == -1) return; // No ticking for unlimited time
-
 
         if (board.getCurrentTurn() == PieceColor.WHITE) {
             if (whiteTimeLeft > 0) {
@@ -221,32 +222,36 @@ public class ChessGame {
     }
 
     public boolean selectSquare(ServerPlayer player, ChessPosition position) {
-        if (!gameActive || (!isPlayerTurn(player) && !analysisMode) ) return false;
+        if (!gameActive || (!isPlayerTurn(player) && !analysisMode)) return false;
 
         ChessPiece piece = board.getPiece(position);
-        PieceColor playerColorForSelection = analysisMode ? board.getCurrentTurn() : getPlayerColor(player);
+        PieceColor playerColor = getPlayerColor(player);
+        PieceColor playerColorForSelection = analysisMode ? board.getCurrentTurn() : playerColor;
+
+        // Get player-specific selection state
+        ChessPosition playerSelectedSquare = getPlayerSelectedSquare(player);
+        Set<ChessPosition> playerValidMoves = getPlayerValidMoves(player);
 
         // Priority 1: If we have a selection and this is a valid move (including captures), make the move
-        if (selectedSquare != null && validMoves.contains(position)) {
+        if (playerSelectedSquare != null && playerValidMoves.contains(position)) {
             if (analysisMode) { // In analysis mode, just make the move for display
-                ChessMove tempMove = new ChessMove(selectedSquare, position); // Simplified move for analysis display
+                ChessMove tempMove = new ChessMove(playerSelectedSquare, position); // Simplified move for analysis display
                 board.makeMove(tempMove); // This won't affect real game state if board is a copy or analysis is separate
-                selectedSquare = null;
-                validMoves.clear();
+                clearPlayerSelection(player);
                 updatePlayerGUIs();
                 return true;
             }
 
-            ChessPiece selectedPieceOnBoard = board.getPiece(selectedSquare);
+            ChessPiece selectedPieceOnBoard = board.getPiece(playerSelectedSquare);
 
             if (selectedPieceOnBoard != null && selectedPieceOnBoard.getType() == PieceType.PAWN &&
                     ((selectedPieceOnBoard.isWhite() && position.rank == 7) ||
                             (selectedPieceOnBoard.isBlack() && position.rank == 0))) {
-                showPromotionDialog(player, selectedSquare, position);
+                showPromotionDialog(player, playerSelectedSquare, position);
                 return true;
             }
 
-            return makeMove(player, selectedSquare, position, null);
+            return makeMove(player, playerSelectedSquare, position, null);
         }
 
         // Priority 2: If there's a piece at this position that belongs to the player, select it
@@ -254,15 +259,13 @@ public class ChessGame {
                 ((playerColorForSelection == PieceColor.WHITE && piece.isWhite()) ||
                         (playerColorForSelection == PieceColor.BLACK && piece.isBlack()))) {
 
-            selectedSquare = position;
-            validMoves = getValidMovesFrom(position);
+            setPlayerSelection(player, position, getValidMovesFrom(position));
             updatePlayerGUIs();
             return true;
         }
 
         // Priority 3: Deselect if clicking on invalid square
-        selectedSquare = null;
-        validMoves.clear();
+        clearPlayerSelection(player);
         updatePlayerGUIs();
         return true;
     }
@@ -278,10 +281,6 @@ public class ChessGame {
         }
 
         // In analysis mode, show moves for the piece at 'from', regardless of whose turn it is in the main game.
-        // For this, we need to generate moves for that piece's color.
-        // The current getLegalMoves() is tied to board.currentTurn.
-        // For analysis, we might need a way to get moves for a specific color from a position.
-        // For now, it will use board.currentTurn, which is fine if analysis mode also allows changing turns.
         if (analysisMode && colorOfPieceAtFrom != null && colorOfPieceAtFrom != board.getCurrentTurn()) {
             // If in analysis mode and selected piece is not of current turn, get its moves
             ChessBoard tempBoard = board.copy(); // Create a copy to not mess with main board's turn
@@ -302,6 +301,55 @@ public class ChessGame {
         return moves;
     }
 
+    // Helper methods for per-player selection state
+    private ChessPosition getPlayerSelectedSquare(ServerPlayer player) {
+        PieceColor playerColor = getPlayerColor(player);
+        if (playerColor == PieceColor.WHITE) {
+            return whiteSelectedSquare;
+        } else if (playerColor == PieceColor.BLACK) {
+            return blackSelectedSquare;
+        }
+        return null;
+    }
+
+    private Set<ChessPosition> getPlayerValidMoves(ServerPlayer player) {
+        PieceColor playerColor = getPlayerColor(player);
+        if (playerColor == PieceColor.WHITE) {
+            return whiteValidMoves;
+        } else if (playerColor == PieceColor.BLACK) {
+            return blackValidMoves;
+        }
+        return new HashSet<>();
+    }
+
+    private void setPlayerSelection(ServerPlayer player, ChessPosition selectedSquare, Set<ChessPosition> validMoves) {
+        PieceColor playerColor = getPlayerColor(player);
+        if (playerColor == PieceColor.WHITE) {
+            this.whiteSelectedSquare = selectedSquare;
+            this.whiteValidMoves = new HashSet<>(validMoves);
+        } else if (playerColor == PieceColor.BLACK) {
+            this.blackSelectedSquare = selectedSquare;
+            this.blackValidMoves = new HashSet<>(validMoves);
+        }
+    }
+
+    private void clearPlayerSelection(ServerPlayer player) {
+        PieceColor playerColor = getPlayerColor(player);
+        if (playerColor == PieceColor.WHITE) {
+            this.whiteSelectedSquare = null;
+            this.whiteValidMoves.clear();
+        } else if (playerColor == PieceColor.BLACK) {
+            this.blackSelectedSquare = null;
+            this.blackValidMoves.clear();
+        }
+    }
+
+    private void clearAllSelections() {
+        whiteSelectedSquare = null;
+        whiteValidMoves.clear();
+        blackSelectedSquare = null;
+        blackValidMoves.clear();
+    }
 
     private void showPromotionDialog(ServerPlayer player, ChessPosition from, ChessPosition to) {
         ChessGUI gui = GameManager.getInstance().getPlayerGUI(player);
@@ -368,7 +416,6 @@ public class ChessGame {
         return true;
     }
 
-
     public boolean resign(ServerPlayer player) {
         if (!gameActive || analysisMode) return false;
 
@@ -380,10 +427,6 @@ public class ChessGame {
 
     public void enableAnalysisMode() {
         if(gameActive) { // Can only enter analysis mode if game is over or was never for rating
-            // For now, analysis mode is a conceptual state.
-            // If the game is active and rated, it shouldn't just become "analysis"
-            // This might be better suited for a "practice board" or post-game analysis.
-            // For simplicity, let's assume it's allowed and just toggles a flag.
             if (whitePlayer != null) whitePlayer.sendSystemMessage(Component.literal("§dGame is now in analysis mode. Moves are not rated."));
             if (blackPlayer != null) blackPlayer.sendSystemMessage(Component.literal("§dGame is now in analysis mode. Moves are not rated."));
         }
@@ -391,7 +434,6 @@ public class ChessGame {
         requestStockfishAnalysis();
         updatePlayerGUIs(); // Update GUI to reflect analysis mode (e.g. different button states)
     }
-
 
     private void requestStockfishAnalysis() {
         analysisData.put("fen", board.toFEN());
@@ -456,7 +498,6 @@ public class ChessGame {
         // Update spectator GUIs too
         GameManager.getInstance().getActiveGames().get(gameId); // ensure game is fetched if needed
         GameManager.getInstance().updateSpectatorGUIs(this);
-
     }
 
     public boolean isPlayerTurn(ServerPlayer player) {
@@ -487,6 +528,7 @@ public class ChessGame {
         return String.format("%d:%02d", minutes, secs);
     }
 
+    // Updated methods to use per-player selection state
     public UUID getGameId() { return gameId; }
     public ServerPlayer getWhitePlayer() { return whitePlayer; }
     public ServerPlayer getBlackPlayer() { return blackPlayer; }
@@ -495,8 +537,27 @@ public class ChessGame {
     public boolean isGameActive() { return gameActive; }
     public int getWhiteTimeLeft() { return whiteTimeLeft; }
     public int getBlackTimeLeft() { return blackTimeLeft; }
-    public ChessPosition getSelectedSquare() { return selectedSquare; }
-    public Set<ChessPosition> getValidMoves() { return validMoves; }
+
+    // These methods now return player-specific selection state
+    public ChessPosition getSelectedSquare(ServerPlayer player) {
+        return getPlayerSelectedSquare(player);
+    }
+
+    public Set<ChessPosition> getValidMoves(ServerPlayer player) {
+        return getPlayerValidMoves(player);
+    }
+
+    // Legacy methods for backward compatibility - default to white player for now
+    @Deprecated
+    public ChessPosition getSelectedSquare() {
+        return whiteSelectedSquare;
+    }
+
+    @Deprecated
+    public Set<ChessPosition> getValidMoves() {
+        return whiteValidMoves;
+    }
+
     public boolean isDrawOffered() { return drawOffered; }
     public ServerPlayer getDrawOfferer() { return drawOfferer; }
     public boolean isAnalysisMode() { return analysisMode; }
