@@ -33,7 +33,6 @@ public class GameManager {
     private final Map<UUID, ChessGUI> playerGUIs = new ConcurrentHashMap<>();
     private final Map<UUID, List<SpectatorGUI>> spectatorGUIs = new ConcurrentHashMap<>();
 
-
     private MinecraftServer server;
     private Path dataDirectory;
 
@@ -151,7 +150,6 @@ public class GameManager {
         }
     }
 
-
     public void endGame(UUID gameId) {
         ChessGame game = activeGames.remove(gameId);
         if (game != null) {
@@ -192,7 +190,8 @@ public class GameManager {
             return false;
         }
 
-        if (isPlayerBusy(challenge.challenger) || isPlayerBusy(challenge.challenged)) {
+        // Check if players are busy, but exclude the current challenge being accepted
+        if (isPlayerBusyExcluding(challenge.challenger, challengeId) || isPlayerBusyExcluding(challenge.challenged, challengeId)) {
             player.sendSystemMessage(Component.literal("§cOne of the players became busy. Cannot start game."));
             if (!challenge.challenger.equals(player)) {
                 challenge.challenger.sendSystemMessage(Component.literal("§cCould not start game with " + player.getName().getString() + " as one of you became busy."));
@@ -209,8 +208,16 @@ public class GameManager {
         ));
         player.sendSystemMessage(Component.literal("§aChallenge accepted!"));
 
-
         return true;
+    }
+
+    private boolean isPlayerBusyExcluding(ServerPlayer player, UUID excludeChallenge) {
+        if (player == null) return true;
+        if (getPlayerGame(player) != null) return true;
+        return pendingChallenges.values().stream()
+                .anyMatch(c -> !c.isExpired() &&
+                        !c.challengeId.equals(excludeChallenge) &&
+                        (c.challenger.equals(player) || c.challenged.equals(player)));
     }
 
     public boolean declineChallenge(ServerPlayer player, UUID challengeId) {
@@ -269,7 +276,6 @@ public class GameManager {
             e.printStackTrace();
         }
     }
-
 
     private void cleanupExpiredChallenges() {
         pendingChallenges.entrySet().removeIf(entry -> {
@@ -372,7 +378,7 @@ public class GameManager {
             game.endGame(GameState.ABANDONED);
 
             player.sendSystemMessage(Component.literal("§eAn admin has ended your current game."));
-            if (opponent != null) { // Check if opponent exists
+            if (opponent != null) {
                 opponent.sendSystemMessage(Component.literal("§eAn admin has ended your game against " + player.getName().getString() + "."));
             }
         }
@@ -383,9 +389,9 @@ public class GameManager {
         for (ChessChallenge challenge : pendingChallenges.values()) {
             if (challenge.challenger.equals(player) || challenge.challenged.equals(player)) {
                 challengesToRemove.add(challenge.challengeId);
-                if (challenge.challenger.equals(player) && challenge.challenged != null) { // Check if challenged exists
+                if (challenge.challenger.equals(player) && challenge.challenged != null) {
                     challenge.challenged.sendSystemMessage(Component.literal("§eA challenge from " + player.getName().getString() + " was cancelled by an admin."));
-                } else if (challenge.challenged.equals(player) && challenge.challenger != null) { // Check if challenger exists
+                } else if (challenge.challenged.equals(player) && challenge.challenger != null) {
                     challenge.challenger.sendSystemMessage(Component.literal("§eYour challenge to " + player.getName().getString() + " was cancelled by an admin."));
                 }
             }
@@ -395,7 +401,6 @@ public class GameManager {
             player.sendSystemMessage(Component.literal("§eYour pending chess challenges have been cleared by an admin."));
         }
     }
-
 
     public Map<UUID, ChessGame> getActiveGames() { return activeGames; }
     public Map<UUID, ChessChallenge> getPendingChallenges() { return pendingChallenges; }

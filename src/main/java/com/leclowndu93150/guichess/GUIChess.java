@@ -36,4 +36,9 @@ public class GUIChess {
         GameManager.getInstance().shutdown();
         LOGGER.info("GUIChess shutdown complete");
     }
+
+    //TODO, Force the client to stay in the chess gui
+    //TODO, end the game if player leaves,
+    //TODO, click to select piece, click another place to move it.
+    //TODO, play sounds available in vanilla
 }
