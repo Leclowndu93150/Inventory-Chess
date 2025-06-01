@@ -14,6 +14,7 @@ import com.leclowndu93150.guichess.game.ChessBoard;
 import com.leclowndu93150.guichess.game.ChessGame;
 import com.leclowndu93150.guichess.game.GameManager;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
+import com.leclowndu93150.guichess.util.PieceOverlayHelper;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.minecraft.network.chat.Component;
@@ -33,6 +34,7 @@ public class ChessGUI extends SimpleGui {
     private boolean showingPromotionDialog = false;
     private ChessPosition promotionFrom;
     private ChessPosition promotionTo;
+    private boolean autoReopen = true; // Can be disabled for death/respawn scenarios
 
     public ChessGUI(ServerPlayer player, ChessGame game, PieceColor playerColor) {
         super(MenuType.GENERIC_9x6, player, true);
@@ -40,8 +42,16 @@ public class ChessGUI extends SimpleGui {
         this.game = game;
         this.playerColor = playerColor;
 
-        setTitle(Component.literal("§0chess_board§rChess Game"));
+        setTitle(Component.literal("§0Chess Game against " + (game != null ? game.getOpponent(player).getName().getString() : "Unknown")));
         setupInitialGUI();
+    }
+
+    public boolean getAutoReopen() {
+        return autoReopen;
+    }
+
+    public void setAutoReopen(boolean autoReopen) {
+        this.autoReopen = autoReopen;
     }
 
     @Override
@@ -55,7 +65,7 @@ public class ChessGUI extends SimpleGui {
 
     @Override
     public void onClose() {
-        if (game != null && game.isGameActive()) {
+        if (game != null && game.isGameActive() && autoReopen) {
             player.sendSystemMessage(Component.literal("§eReopening chess board..."));
             GameManager.getInstance().getServer().execute(() -> {
                 try {
@@ -94,6 +104,18 @@ public class ChessGUI extends SimpleGui {
             clearSlot(i);
         }
 
+        // Determine pieces that can be captured this turn
+        Set<ChessPosition> capturablePositions = getCapturablePositions(board, validMoves, selected);
+
+        // Get last move positions for highlighting
+        ChessPosition lastMoveFrom = null;
+        ChessPosition lastMoveTo = null;
+        if (!moveHistory.isEmpty()) {
+            ChessMove lastMove = moveHistory.get(moveHistory.size() - 1);
+            lastMoveFrom = lastMove.from;
+            lastMoveTo = lastMove.to;
+        }
+
         for (int i = 0; i < 64; i++) {
             int row = i / 8;
             int col = i % 8;
@@ -118,44 +140,10 @@ public class ChessGUI extends SimpleGui {
             GuiElementBuilder builder;
 
             if (piece != null) {
-                builder = createPieceElement(piece, position);
+                builder = createPieceElementWithOverlay(piece, position, board, selected, validMoves,
+                        capturablePositions, lastMoveFrom, lastMoveTo);
             } else {
-                builder = createEmptySquareElement(position);
-            }
-
-            boolean isHighlighted = false;
-            if (!moveHistory.isEmpty()) {
-                ChessMove lastMove = moveHistory.get(moveHistory.size() - 1);
-                if (position.equals(lastMove.from)) {
-                    //TODO FIX
-                    //builder.setCustomModelData(BoardSquare.LAST_MOVE_FROM.modelData);
-                    isHighlighted = true;
-                } else if (position.equals(lastMove.to)) {
-                    //TODO FIX
-                    //builder.setCustomModelData(BoardSquare.LAST_MOVE_TO.modelData);
-                    isHighlighted = true;
-                }
-            }
-
-            if (!isHighlighted) {
-                if (position.equals(selected)) {
-                    //TODO FIX
-                    //builder.setCustomModelData(BoardSquare.SELECTED_SQUARE.modelData);
-                } else if (validMoves.contains(position)) {
-                    if (board.getPiece(position) != null) {
-                        //TODO FIX
-                        //builder.setCustomModelData(BoardSquare.CAPTURE_MOVE.modelData);
-                    } else {
-                        //TODO FIX
-                        builder.setCustomModelData(BoardSquare.VALID_MOVE.modelData);
-                    }
-                }
-            }
-
-            ChessPosition kingPos = board.findKing(board.getCurrentTurn());
-            if (board.isInCheck(board.getCurrentTurn()) && position.equals(kingPos)) {
-                //TODO FIX
-                //builder.setCustomModelData(BoardSquare.CHECK_SQUARE.modelData);
+                builder = createEmptySquareElement(position, validMoves);
             }
 
             final ChessPosition currentPos = position;
@@ -166,6 +154,21 @@ public class ChessGUI extends SimpleGui {
             setSlot(slotIndex, builder);
         }
         updateUtilitySlots();
+    }
+
+    private Set<ChessPosition> getCapturablePositions(ChessBoard board, Set<ChessPosition> validMoves, ChessPosition selected) {
+        Set<ChessPosition> capturablePositions = new HashSet<>();
+
+        if (selected != null && validMoves != null) {
+            for (ChessPosition movePos : validMoves) {
+                ChessPiece targetPiece = board.getPiece(movePos);
+                if (targetPiece != null) {
+                    capturablePositions.add(movePos);
+                }
+            }
+        }
+
+        return capturablePositions;
     }
 
     protected void handleSquareClick(ChessPosition position) {
@@ -229,20 +232,65 @@ public class ChessGUI extends SimpleGui {
         }
     }
 
-    protected GuiElementBuilder createPieceElement(ChessPiece piece, ChessPosition position) {
+    protected GuiElementBuilder createPieceElementWithOverlay(ChessPiece piece, ChessPosition position,
+                                                              ChessBoard board, ChessPosition selected,
+                                                              Set<ChessPosition> validMoves,
+                                                              Set<ChessPosition> capturablePositions,
+                                                              ChessPosition lastMoveFrom, ChessPosition lastMoveTo) {
+        boolean isLightSquare = (position.file + position.rank) % 2 == 0;
+        boolean isSelected = position.equals(selected);
+        boolean canBeCaptured = capturablePositions.contains(position);
+        boolean isLastMoved = position.equals(lastMoveFrom) || position.equals(lastMoveTo);
+        boolean isInCheck = false;
+
+        // Check if this king is in check
+        if (piece.getType() == PieceType.KING) {
+            PieceColor kingColor = piece.isWhite() ? PieceColor.WHITE : PieceColor.BLACK;
+            isInCheck = board.isInCheck(kingColor);
+        }
+
+        int modelData = PieceOverlayHelper.getModelDataForPieceState(piece, isLightSquare,
+                isSelected, canBeCaptured,
+                isLastMoved, isInCheck);
+
+        Component displayName = Component.empty()
+                .append(piece.displayName)
+                .append(Component.literal(" - " + position.toNotation()));
+
+        // Add state indicators to the display name
+        if (isInCheck) {
+            displayName = Component.empty().append(displayName).append(Component.literal(" §c[CHECK]"));
+        } else if (isSelected) {
+            displayName = Component.empty().append(displayName).append(Component.literal(" §e[SELECTED]"));
+        } else if (canBeCaptured) {
+            displayName = Component.empty().append(displayName).append(Component.literal(" §c[CAN CAPTURE]"));
+        } else if (isLastMoved) {
+            displayName = Component.empty().append(displayName).append(Component.literal(" §6[LAST MOVE]"));
+        }
+
         return new GuiElementBuilder(Items.GRAY_DYE)
-                .setCustomModelData(piece.modelData)
-                .setName(piece.displayName.copy().append(Component.literal(" - " + position.toNotation())));
+                .setCustomModelData(modelData)
+                .setName(displayName);
     }
 
-    protected GuiElementBuilder createEmptySquareElement(ChessPosition position) {
+    protected GuiElementBuilder createEmptySquareElement(ChessPosition position, Set<ChessPosition> validMoves) {
         boolean isLight = (position.file + position.rank) % 2 == 0;
-        BoardSquare squareType = isLight ? BoardSquare.LIGHT_SQUARE : BoardSquare.DARK_SQUARE;
 
-        return new GuiElementBuilder(Items.GRAY_DYE)
-                .setCustomModelData(squareType.modelData)
-                .setName(Component.literal(position.toNotation()))
-                .hideDefaultTooltip();
+        // Use valid move squares for empty squares that are valid moves
+        if (validMoves != null && validMoves.contains(position)) {
+            BoardSquare squareType = isLight ? BoardSquare.VALID_LIGHT_SQUARE : BoardSquare.VALID_DARK_SQUARE;
+            return new GuiElementBuilder(Items.GRAY_DYE)
+                    .setCustomModelData(squareType.modelData)
+                    .setName(Component.literal("§a" + position.toNotation() + " - Valid Move"))
+                    .hideDefaultTooltip();
+        } else {
+            // Normal empty square
+            BoardSquare squareType = isLight ? BoardSquare.LIGHT_SQUARE : BoardSquare.DARK_SQUARE;
+            return new GuiElementBuilder(Items.GRAY_DYE)
+                    .setCustomModelData(squareType.modelData)
+                    .setName(Component.literal(position.toNotation()))
+                    .hideDefaultTooltip();
+        }
     }
 
     protected void setupUtilitySlots() {

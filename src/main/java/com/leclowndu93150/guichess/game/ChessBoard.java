@@ -66,6 +66,11 @@ public class ChessBoard {
         ChessPiece movingPiece = getPiece(move.from);
         ChessPiece capturedPiece = getPiece(move.to); // Could be null
 
+        // FIXED: Prevent king capture - this should never happen in legal chess
+        if (capturedPiece != null && capturedPiece.getType() == PieceType.KING) {
+            throw new IllegalStateException("Illegal move: Cannot capture the king! This should never happen in legal chess.");
+        }
+
         // Handle en passant capture: remove the actual captured pawn
         if (move.isEnPassant) {
             ChessPosition capturedPawnPos = new ChessPosition(move.to.file, move.from.rank);
@@ -186,6 +191,11 @@ public class ChessBoard {
         ChessPiece targetPiece = getPiece(move.to);
         if (targetPiece != null && piece.isWhite() == targetPiece.isWhite()) {
             return false;
+        }
+
+        // FIXED: Prevent king capture in pseudo-legal move generation
+        if (targetPiece != null && targetPiece.getType() == PieceType.KING) {
+            return false; // Cannot capture king
         }
 
         return switch (piece.getType()) {
@@ -381,7 +391,10 @@ public class ChessBoard {
             if (toCapture.isValid()) {
                 ChessPiece target = getPiece(toCapture);
                 if (target != null && target.isWhite() != piece.isWhite()) {
-                    addPawnMove(from, toCapture, piece, target, true, false, moves, promotionRank);
+                    // FIXED: Prevent king capture in pawn moves
+                    if (target.getType() != PieceType.KING) {
+                        addPawnMove(from, toCapture, piece, target, true, false, moves, promotionRank);
+                    }
                 } else if (toCapture.equals(enPassantTarget)) { // En passant
                     addPawnMove(from, toCapture, piece, null, true, true, moves, promotionRank);
                 }
@@ -410,7 +423,8 @@ public class ChessBoard {
                 if (target == null) {
                     moves.add(new ChessMove(from, to));
                 } else {
-                    if (target.isWhite() != piece.isWhite()) {
+                    if (target.isWhite() != piece.isWhite() && target.getType() != PieceType.KING) {
+                        // FIXED: Prevent king capture in sliding piece moves
                         moves.add(new ChessMove(from, to, null, true, false, false, false, false));
                     }
                     break;
@@ -425,7 +439,8 @@ public class ChessBoard {
             ChessPosition to = new ChessPosition(from.file + offset[0], from.rank + offset[1]);
             if (to.isValid()) {
                 ChessPiece target = getPiece(to);
-                if (target == null || target.isWhite() != piece.isWhite()) {
+                if (target == null || (target.isWhite() != piece.isWhite() && target.getType() != PieceType.KING)) {
+                    // FIXED: Prevent king capture in knight moves
                     moves.add(new ChessMove(from, to, null, target != null, false, false, false, false));
                 }
             }
@@ -440,7 +455,8 @@ public class ChessBoard {
                 ChessPosition to = new ChessPosition(from.file + df, from.rank + dr);
                 if (to.isValid()) {
                     ChessPiece target = getPiece(to);
-                    if (target == null || target.isWhite() != piece.isWhite()) {
+                    if (target == null || (target.isWhite() != piece.isWhite() && target.getType() != PieceType.KING)) {
+                        // FIXED: Prevent king capture in king moves
                         moves.add(new ChessMove(from, to, null, target != null, false, false, false, false));
                     }
                 }

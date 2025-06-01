@@ -55,14 +55,14 @@ public class ChessCommands {
                                         .then(Commands.argument("timecontrol", StringArgumentType.string())
                                                 .suggests(TIME_CONTROL_SUGGESTIONS)
                                                 .executes(ChessCommands::createGame))
-                                        .executes(ctx -> createGame(ctx, "BLITZ_5_0"))))
+                                        .executes(ctx -> createGameWithDefaultTime(ctx))))
 
                         .then(Commands.literal("challenge")
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .then(Commands.argument("timecontrol", StringArgumentType.string())
                                                 .suggests(TIME_CONTROL_SUGGESTIONS)
                                                 .executes(ChessCommands::challengePlayer))
-                                        .executes(ctx -> challengePlayer(ctx, "BLITZ_5_0"))))
+                                        .executes(ctx -> challengePlayerWithDefaultTime(ctx))))
 
                         .then(Commands.literal("accept")
                                 .executes(ChessCommands::acceptChallenge))
@@ -123,13 +123,26 @@ public class ChessCommands {
                                                 .executes(ChessCommands::adminUnbusyPlayer)))));
     }
 
-    private static int createGame(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        return createGame(context, "BLITZ_5_0");
-    }
-
-    private static int createGame(CommandContext<CommandSourceStack> context, String timeControlName) throws CommandSyntaxException {
+    private static int createGameWithDefaultTime(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
         ServerPlayer opponent = EntityArgument.getPlayer(context, "opponent");
+
+        // Use player's favorite time control or default to BLITZ_5_0
+        PlayerData playerData = GameManager.getInstance().getPlayerData(player);
+        String timeControlName = playerData.favoriteTimeControl != null ? playerData.favoriteTimeControl : "BLITZ_5_0";
+
+        return createGameInternal(context, opponent, timeControlName);
+    }
+
+    private static int createGame(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer opponent = EntityArgument.getPlayer(context, "opponent");
+        String timeControlName = StringArgumentType.getString(context, "timecontrol");
+
+        return createGameInternal(context, opponent, timeControlName);
+    }
+
+    private static int createGameInternal(CommandContext<CommandSourceStack> context, ServerPlayer opponent, String timeControlName) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
 
         if (player.equals(opponent)) {
             context.getSource().sendFailure(Component.literal("§cYou cannot play against yourself!"));
@@ -165,13 +178,26 @@ public class ChessCommands {
         return 1;
     }
 
-    private static int challengePlayer(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        return challengePlayer(context, "BLITZ_5_0");
+    private static int challengePlayerWithDefaultTime(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        ServerPlayer challenged = EntityArgument.getPlayer(context, "player");
+
+        // Use player's favorite time control or default to BLITZ_5_0
+        PlayerData playerData = GameManager.getInstance().getPlayerData(player);
+        String timeControlName = playerData.favoriteTimeControl != null ? playerData.favoriteTimeControl : "BLITZ_5_0";
+
+        return challengePlayerInternal(context, challenged, timeControlName);
     }
 
-    private static int challengePlayer(CommandContext<CommandSourceStack> context, String timeControlName) throws CommandSyntaxException {
-        ServerPlayer challenger = context.getSource().getPlayerOrException();
+    private static int challengePlayer(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer challenged = EntityArgument.getPlayer(context, "player");
+        String timeControlName = StringArgumentType.getString(context, "timecontrol");
+
+        return challengePlayerInternal(context, challenged, timeControlName);
+    }
+
+    private static int challengePlayerInternal(CommandContext<CommandSourceStack> context, ServerPlayer challenged, String timeControlName) throws CommandSyntaxException {
+        ServerPlayer challenger = context.getSource().getPlayerOrException();
 
         if (challenger.equals(challenged)) {
             context.getSource().sendFailure(Component.literal("§cYou cannot challenge yourself!"));

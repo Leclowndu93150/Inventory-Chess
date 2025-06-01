@@ -6,11 +6,14 @@ import com.leclowndu93150.guichess.chess.util.TimeControl;
 import com.leclowndu93150.guichess.data.PlayerData;
 import com.leclowndu93150.guichess.gui.ChessGUI;
 import com.leclowndu93150.guichess.gui.SpectatorGUI;
+import com.leclowndu93150.guichess.util.ChessSoundManager;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -32,6 +35,9 @@ public class GameManager {
     private final Map<UUID, PlayerData> playerDataMap = new ConcurrentHashMap<>();
     private final Map<UUID, ChessGUI> playerGUIs = new ConcurrentHashMap<>();
     private final Map<UUID, List<SpectatorGUI>> spectatorGUIs = new ConcurrentHashMap<>();
+
+    // Time warning tracking
+    private final Map<UUID, Set<Integer>> timeWarningsSent = new ConcurrentHashMap<>();
 
     private MinecraftServer server;
     private Path dataDirectory;
@@ -87,11 +93,11 @@ public class GameManager {
                 ChessGUI whiteGUI = playerGUIs.get(game.getWhitePlayer().getUUID());
                 ChessGUI blackGUI = playerGUIs.get(game.getBlackPlayer().getUUID());
 
-                if (whiteGUI != null && !whiteGUI.isOpen()) {
+                if (whiteGUI != null && !whiteGUI.isOpen() && whiteGUI.getAutoReopen()) {
                     whiteGUI.open();
                 }
 
-                if (blackGUI != null && !blackGUI.isOpen()) {
+                if (blackGUI != null && !blackGUI.isOpen() && blackGUI.getAutoReopen()) {
                     blackGUI.open();
                 }
             }
@@ -125,7 +131,33 @@ public class GameManager {
         saveAllGameData();
     }
 
-    public ChessGame createGame(ServerPlayer whitePlayer, ServerPlayer blackPlayer, TimeControl timeControl) {
+    public ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl) {
+        return createGame(player1, player2, timeControl, false);
+    }
+
+    public ChessGame createGameWithRandomizedSides(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl) {
+        return createGame(player1, player2, timeControl, true);
+    }
+
+    private ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl, boolean randomizeSides) {
+        ServerPlayer whitePlayer, blackPlayer;
+
+        if (randomizeSides) {
+            if (Math.random() < 0.5) {
+                whitePlayer = player1;
+                blackPlayer = player2;
+            } else {
+                whitePlayer = player2;
+                blackPlayer = player1;
+            }
+            // Notify players of their colors
+            whitePlayer.sendSystemMessage(Component.literal("§fYou are playing as White"));
+            blackPlayer.sendSystemMessage(Component.literal("§8You are playing as Black"));
+        } else {
+            whitePlayer = player1;
+            blackPlayer = player2;
+        }
+
         ChessGame game = new ChessGame(whitePlayer, blackPlayer, timeControl);
         activeGames.put(game.getGameId(), game);
 
@@ -136,6 +168,7 @@ public class GameManager {
         playerGUIs.put(blackPlayer.getUUID(), blackGUI);
 
         spectatorGUIs.put(game.getGameId(), new ArrayList<>());
+        timeWarningsSent.put(game.getGameId(), new HashSet<>());
 
         whiteGUI.open();
         blackGUI.open();
@@ -182,6 +215,10 @@ public class GameManager {
             ChessGUI whiteGui = playerGUIs.remove(game.getWhitePlayer().getUUID());
             ChessGUI blackGui = playerGUIs.remove(game.getBlackPlayer().getUUID());
 
+            // Clear inventory after match ended
+            clearPlayerInventoryFromChessPieces(game.getWhitePlayer());
+            clearPlayerInventoryFromChessPieces(game.getBlackPlayer());
+
             if (whiteGui != null && whiteGui.isOpen()) whiteGui.close();
             if (blackGui != null && blackGui.isOpen()) blackGui.close();
 
@@ -191,10 +228,30 @@ public class GameManager {
                     if (gui.isOpen()) gui.close();
                 });
             }
+
+            // Clean up time warnings
+            timeWarningsSent.remove(gameId);
+        }
+    }
+
+    private void clearPlayerInventoryFromChessPieces(ServerPlayer player) {
+        if (player != null && !player.hasDisconnected()) {
+            server.execute(() -> {
+                player.inventoryMenu.sendAllDataToRemote();
+                //player.connection.send(player.inventoryMenu.getItems());
+            });
         }
     }
 
     public ChessChallenge createChallenge(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl) {
+        return createChallenge(challenger, challenged, timeControl, false);
+    }
+
+    public ChessChallenge createChallengeWithRandomizedSides(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl) {
+        return createChallenge(challenger, challenged, timeControl, true);
+    }
+
+    private ChessChallenge createChallenge(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl, boolean randomizeSides) {
         if (isPlayerBusy(challenger) || isPlayerBusy(challenged)) {
             return null;
         }
@@ -202,9 +259,10 @@ public class GameManager {
         ChessChallenge challenge = new ChessChallenge(challenger, challenged, timeControl);
         pendingChallenges.put(challenge.challengeId, challenge);
 
+        String sideInfo = randomizeSides ? " (randomized sides)" : "";
         challenged.sendSystemMessage(Component.literal(
                 "§e" + challenger.getName().getString() + " challenges you to a " +
-                        timeControl.displayName + " game! Use /chess accept or /chess decline"
+                        timeControl.displayName + " game" + sideInfo + "! Use /chess accept or /chess decline"
         ));
         return challenge;
     }
@@ -226,6 +284,9 @@ public class GameManager {
         }
 
         pendingChallenges.remove(challengeId);
+
+        // Check if challenge should have randomized sides (this would need to be stored in ChessChallenge)
+        // For now, we'll just use normal sides unless explicitly requested
         createGame(challenge.challenger, challenge.challenged, challenge.timeControl);
 
         challenge.challenger.sendSystemMessage(Component.literal(
@@ -295,10 +356,60 @@ public class GameManager {
 
     private void tickAllGames() {
         try {
-            activeGames.values().forEach(ChessGame::tickTimer);
+            for (ChessGame game : activeGames.values()) {
+                // Check for time warnings before ticking
+                checkTimeWarnings(game);
+
+                game.tickTimer();
+            }
         } catch (Exception e) {
             System.err.println("[GUIChess] Error during game ticking: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private void checkTimeWarnings(ChessGame game) {
+        if (game == null || !game.isGameActive()) return;
+
+        Set<Integer> warnings = timeWarningsSent.get(game.getGameId());
+        if (warnings == null) return;
+
+        int whiteTime = game.getWhiteTimeLeft();
+        int blackTime = game.getBlackTimeLeft();
+
+        // Only warn for games with substantial time (more than 2 minutes initially)
+        if (game.getTimeControl().initialSeconds <= 120) return;
+
+        // 1 minute warning
+        if (whiteTime <= 60 && whiteTime > 59 && !warnings.contains(60)) {
+            sendTimeWarning(game.getWhitePlayer(), "§c⚠ 1 minute remaining!");
+            warnings.add(60);
+        }
+        if (blackTime <= 60 && blackTime > 59 && !warnings.contains(-60)) {
+            sendTimeWarning(game.getBlackPlayer(), "§c⚠ 1 minute remaining!");
+            warnings.add(-60);
+        }
+
+        // 10 second warning (for games with more than 3 minutes initially)
+        if (game.getTimeControl().initialSeconds > 180) {
+            if (whiteTime <= 10 && whiteTime > 9 && !warnings.contains(10)) {
+                sendTimeWarning(game.getWhitePlayer(), "§4⚠⚠ 10 SECONDS LEFT! ⚠⚠");
+                warnings.add(10);
+            }
+            if (blackTime <= 10 && blackTime > 9 && !warnings.contains(-10)) {
+                sendTimeWarning(game.getBlackPlayer(), "§4⚠⚠ 10 SECONDS LEFT! ⚠⚠");
+                warnings.add(-10);
+            }
+        }
+    }
+
+    private void sendTimeWarning(ServerPlayer player, String message) {
+        if (player != null && !player.hasDisconnected()) {
+            player.sendSystemMessage(Component.literal(message));
+
+            // Play warning sound
+            player.level().playSound(null, player.blockPosition(),
+                    SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.PLAYERS, 0.8f, 1.5f);
         }
     }
 

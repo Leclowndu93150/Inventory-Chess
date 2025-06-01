@@ -57,5 +57,4 @@ public class GUIChess {
     //TODO: Implement Forfeiting  and make sure to add a confirm mechanic
     //TODO:Optional but we can hear when our opponents click their gui it's annoying.
 
-    //Class each of the issues to the class they need fixing, then apply all the fixes class by class and give them to me
 }

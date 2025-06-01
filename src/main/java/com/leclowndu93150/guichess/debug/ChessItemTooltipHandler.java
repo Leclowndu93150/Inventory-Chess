@@ -3,6 +3,7 @@ package com.leclowndu93150.guichess.debug;
 import com.leclowndu93150.guichess.chess.board.BoardSquare;
 import com.leclowndu93150.guichess.chess.pieces.ChessPiece;
 import com.leclowndu93150.guichess.chess.util.GameUtility;
+import com.leclowndu93150.guichess.util.PieceOverlayHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -16,6 +17,7 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @EventBusSubscriber(value = Dist.CLIENT, modid = "guichess")
 public class ChessItemTooltipHandler {
@@ -31,10 +33,17 @@ public class ChessItemTooltipHandler {
         int modelData = cmd.value();
         List<Component> tooltip = event.getToolTip();
 
-        // Check if it's a chess piece
+        // Check if it's a chess piece (original)
         ChessPiece piece = getChessPieceByModelData(modelData);
         if (piece != null) {
             addChessPieceTooltip(tooltip, piece, modelData);
+            return;
+        }
+
+        // Check if it's a piece overlay (model data 2000+)
+        String overlayInfo = getPieceOverlayInfo(modelData);
+        if (overlayInfo != null) {
+            addPieceOverlayTooltip(tooltip, overlayInfo, modelData);
             return;
         }
 
@@ -57,7 +66,7 @@ public class ChessItemTooltipHandler {
             Minecraft mc = Minecraft.getInstance();
             if (mc.options.advancedItemTooltips) {
                 tooltip.add(Component.empty());
-                tooltip.add(Component.literal("§6Chess Item - Model Data: §f" + modelData));
+                tooltip.add(Component.literal("§6Unknown Chess Item - Model Data: §f" + modelData));
                 addDataComponentInfo(tooltip, stack);
             }
         }
@@ -74,6 +83,19 @@ public class ChessItemTooltipHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.advancedItemTooltips) {
             tooltip.add(Component.literal("§8Internal: " + piece.name()));
+        }
+    }
+
+    private static void addPieceOverlayTooltip(List<Component> tooltip, String overlayInfo, int modelData) {
+        tooltip.add(Component.empty());
+        tooltip.add(Component.literal("§6§lChess Piece Overlay"));
+        tooltip.add(Component.literal("§7Piece: §f" + overlayInfo));
+        tooltip.add(Component.literal("§7Model ID: §b" + modelData));
+        tooltip.add(Component.literal("§7Type: §eBackground Overlay"));
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.options.advancedItemTooltips) {
+            tooltip.add(Component.literal("§8Range: 2000+ (Piece Overlays)"));
         }
     }
 
@@ -127,6 +149,66 @@ public class ChessItemTooltipHandler {
                 .filter(piece -> piece.modelData == modelData)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private static String getPieceOverlayInfo(int modelData) {
+        if (modelData < 2000) return null;
+
+        // Get all overlay model data from PieceOverlayHelper
+        Map<String, Integer> overlayData = PieceOverlayHelper.getAllOverlayModelData();
+
+        for (Map.Entry<String, Integer> entry : overlayData.entrySet()) {
+            if (entry.getValue() == modelData) {
+                return formatOverlayName(entry.getKey());
+            }
+        }
+
+        return null;
+    }
+
+    private static String formatOverlayName(String overlayKey) {
+        // Convert something like "white_king_selected_light" to "White King (Selected on Light Square)"
+        String[] parts = overlayKey.split("_");
+        if (parts.length < 3) return overlayKey;
+
+        StringBuilder result = new StringBuilder();
+
+        // Color and piece type
+        String color = capitalize(parts[0]);
+        String pieceType = capitalize(parts[1]);
+        result.append(color).append(" ").append(pieceType);
+
+        // State and square color
+        if (parts.length > 2) {
+            String state = "";
+            String squareColor = "";
+
+            if (parts.length >= 3) {
+                if (parts[2].equals("light") || parts[2].equals("dark")) {
+                    squareColor = capitalize(parts[2]) + " Square";
+                } else {
+                    state = capitalize(parts[2]);
+                    if (parts.length >= 4) {
+                        squareColor = capitalize(parts[3]) + " Square";
+                    }
+                }
+            }
+
+            if (!state.isEmpty() && !squareColor.isEmpty()) {
+                result.append(" (").append(state).append(" on ").append(squareColor).append(")");
+            } else if (!squareColor.isEmpty()) {
+                result.append(" (").append(squareColor).append(")");
+            } else if (!state.isEmpty()) {
+                result.append(" (").append(state).append(")");
+            }
+        }
+
+        return result.toString();
+    }
+
+    private static String capitalize(String str) {
+        if (str == null || str.isEmpty()) return str;
+        return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
     }
 
     private static BoardSquare getBoardSquareByModelData(int modelData) {
