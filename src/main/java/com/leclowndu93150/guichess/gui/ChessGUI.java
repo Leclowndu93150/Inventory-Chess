@@ -14,7 +14,6 @@ import com.leclowndu93150.guichess.game.ChessBoard;
 import com.leclowndu93150.guichess.game.ChessGame;
 import com.leclowndu93150.guichess.game.GameManager;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
-import com.leclowndu93150.guichess.util.EnhancedMoveValidator;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.minecraft.network.chat.Component;
@@ -22,21 +21,18 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Items;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class ChessGUI extends SimpleGui {
-    private final ChessGame game;
-    private final PieceColor playerColor;
+    protected final ChessGame game;
+    protected final PieceColor playerColor;
     protected final ServerPlayer player;
 
     private boolean showingPromotionDialog = false;
     private ChessPosition promotionFrom;
     private ChessPosition promotionTo;
-    private boolean wasLastMoveCapture = false;
-    private boolean wasLastMoveCheck = false;
-    private boolean wasLastMoveCheckmate = false;
-    private boolean wasLastMoveCastle = false;
 
     public ChessGUI(ServerPlayer player, ChessGame game, PieceColor playerColor) {
         super(MenuType.GENERIC_9x6, player, true);
@@ -50,7 +46,7 @@ public class ChessGUI extends SimpleGui {
 
     @Override
     public boolean canPlayerClose() {
-        if (game.isGameActive()) {
+        if (game != null && game.isGameActive()) {
             player.sendSystemMessage(Component.literal("§cYou cannot close the chess GUI during an active game! Use /chess resign to forfeit."));
             return false;
         }
@@ -59,7 +55,7 @@ public class ChessGUI extends SimpleGui {
 
     @Override
     public void onClose() {
-        if (game.isGameActive()) {
+        if (game != null && game.isGameActive()) {
             player.sendSystemMessage(Component.literal("§eReopening chess board..."));
             GameManager.getInstance().getServer().execute(() -> {
                 try {
@@ -87,10 +83,10 @@ public class ChessGUI extends SimpleGui {
             return;
         }
 
-        ChessBoard board = game.getBoard();
-        Set<ChessPosition> validMoves = game.getValidMoves();
-        ChessPosition selected = game.getSelectedSquare();
-        List<ChessMove> moveHistory = board.getMoveHistory();
+        ChessBoard board = getBoard();
+        Set<ChessPosition> validMoves = getValidMoves();
+        ChessPosition selected = getSelectedSquare();
+        List<ChessMove> moveHistory = getMoveHistory();
 
         checkForSoundEffects(moveHistory);
 
@@ -103,12 +99,12 @@ public class ChessGUI extends SimpleGui {
             int col = i % 8;
 
             int chessRank, chessFile;
-            if (playerColor == PieceColor.WHITE) {
+            if (getBoardPerspective() == PieceColor.WHITE) {
                 chessRank = row;
                 chessFile = col;
             } else {
                 chessRank = 7 - row;
-                chessFile = col;
+                chessFile = 7 - col;
             }
 
             ChessPosition position = new ChessPosition(chessFile, chessRank);
@@ -156,24 +152,7 @@ public class ChessGUI extends SimpleGui {
 
             final ChessPosition currentPos = position;
             builder.setCallback((index, type, action, gui) -> {
-                EnhancedMoveValidator.MoveResult result = EnhancedMoveValidator.validateSelection(game, player, currentPos);
-
-                if (!result.success) {
-                    ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
-                    player.sendSystemMessage(EnhancedMoveValidator.getMoveFeedback(result, currentPos));
-                    return;
-                }
-
-                boolean wasMove = game.selectSquare(player, currentPos);
-
-                if (result.type == EnhancedMoveValidator.MoveType.PIECE_SELECTION) {
-                    ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SELECT);
-                } else if (wasMove) {
-                    if (!moveHistory.isEmpty()) {
-                        ChessMove lastMove = moveHistory.get(moveHistory.size() - 1);
-                        ChessSoundManager.playMoveSound(player, lastMove, game.getBoard().getGameState());
-                    }
-                }
+                handleSquareClick(currentPos);
             });
 
             setSlot(slotIndex, builder);
@@ -181,11 +160,60 @@ public class ChessGUI extends SimpleGui {
         updateUtilitySlots();
     }
 
+    protected void handleSquareClick(ChessPosition position) {
+        if (game == null) return; // Practice mode overrides this
+
+        // Default implementation for real chess games
+        ChessBoard board = getBoard();
+        Set<ChessPosition> validMoves = getValidMoves();
+        ChessPosition previousSelection = getSelectedSquare();
+        ChessPiece pieceAtPos = board.getPiece(position);
+
+        // Priority 1: If we have a selection and this is a valid move, make the move
+        if (previousSelection != null && validMoves.contains(position)) {
+            boolean actionResult = game.selectSquare(player, position);
+
+            if (!actionResult) {
+                ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
+                return;
+            }
+
+            // Check if move was successful (selection should be cleared after a move)
+            if (getSelectedSquare() == null) {
+                List<ChessMove> moveHistory = getMoveHistory();
+                if (!moveHistory.isEmpty()) {
+                    ChessMove lastMove = moveHistory.get(moveHistory.size() - 1);
+                    if (lastMove.isCapture && pieceAtPos != null) {
+                        player.sendSystemMessage(Component.literal("§aCaptured " + pieceAtPos.displayName.getString() + "!"));
+                    }
+                    ChessSoundManager.playMoveSound(player, lastMove, getBoard().getGameState());
+                }
+            }
+            return;
+        }
+
+        // Priority 2: Try to select piece or deselect
+        boolean actionResult = game.selectSquare(player, position);
+
+        if (!actionResult) {
+            ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
+            return;
+        }
+
+        // Determine what happened
+        ChessPosition newSelection = getSelectedSquare();
+
+        if (pieceAtPos != null && newSelection != null && newSelection.equals(position)) {
+            ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SELECT);
+        } else if (newSelection == null && previousSelection != null) {
+            ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
+        }
+    }
+
     private void checkForSoundEffects(List<ChessMove> moveHistory) {
         if (moveHistory.isEmpty()) return;
 
-        int currentMoveCount = moveHistory.size();
-        GameState gameState = game.getBoard().getGameState();
+        GameState gameState = getBoard().getGameState();
 
         if (gameState != GameState.WHITE_TURN && gameState != GameState.BLACK_TURN &&
                 gameState != GameState.CHECK_WHITE && gameState != GameState.CHECK_BLACK) {
@@ -193,17 +221,13 @@ public class ChessGUI extends SimpleGui {
         }
     }
 
-    private void playSound(net.minecraft.sounds.SoundEvent sound) {
-        // Deprecated - use ChessSoundManager instead
-    }
-
-    private GuiElementBuilder createPieceElement(ChessPiece piece, ChessPosition position) {
+    protected GuiElementBuilder createPieceElement(ChessPiece piece, ChessPosition position) {
         return new GuiElementBuilder(Items.GRAY_DYE)
                 .setCustomModelData(piece.modelData)
                 .setName(piece.displayName.copy().append(Component.literal(" - " + position.toNotation())));
     }
 
-    private GuiElementBuilder createEmptySquareElement(ChessPosition position) {
+    protected GuiElementBuilder createEmptySquareElement(ChessPosition position) {
         boolean isLight = (position.file + position.rank) % 2 == 0;
         BoardSquare squareType = isLight ? BoardSquare.LIGHT_SQUARE : BoardSquare.DARK_SQUARE;
 
@@ -224,13 +248,15 @@ public class ChessGUI extends SimpleGui {
         setupAnalysisTools();
     }
 
-    private void updateUtilitySlots() {
+    protected void updateUtilitySlots() {
         updateTimerDisplays();
         updateTurnIndicator();
         updateDrawButtons();
     }
 
-    private void updateTimerDisplays() {
+    protected void updateTimerDisplays() {
+        if (game == null) return; // Practice mode doesn't have a game
+
         GuiElementBuilder whiteTimer = new GuiElementBuilder(Items.CLOCK)
                 .setName(Component.literal("§fWhite: " + game.formatTime(game.getWhiteTimeLeft())));
 
@@ -246,9 +272,11 @@ public class ChessGUI extends SimpleGui {
         }
     }
 
-    private void updateTurnIndicator() {
-        PieceColor currentTurn = game.getBoard().getCurrentTurn();
-        GameState gameState = game.getBoard().getGameState();
+    protected void updateTurnIndicator() {
+        if (game == null) return; // Handled by practice mode
+
+        PieceColor currentTurn = getBoard().getCurrentTurn();
+        GameState gameState = getBoard().getGameState();
         GuiElementBuilder turnIndicator;
 
         if (!game.isGameActive() || gameState == GameState.CHECKMATE_WHITE_WINS || gameState == GameState.CHECKMATE_BLACK_WINS ||
@@ -267,7 +295,9 @@ public class ChessGUI extends SimpleGui {
         setSlot(35, turnIndicator);
     }
 
-    private void setupAnalysisTools() {
+    protected void setupAnalysisTools() {
+        if (game == null) return; // Practice mode handles this separately
+
         setSlot(9, createUtilityButton(GameUtility.ANALYZE_POSITION, this::handleAnalyze));
         setSlot(18, createUtilityButton(GameUtility.STOCKFISH_HINT, this::handleHint));
 
@@ -279,8 +309,8 @@ public class ChessGUI extends SimpleGui {
                 .setName(Component.literal("§7" + game.getTimeControl().displayName)));
     }
 
-    private void updateDrawButtons() {
-        if (!game.isGameActive()) {
+    protected void updateDrawButtons() {
+        if (game == null || !game.isGameActive()) {
             clearSlot(71);
             clearSlot(8);
             return;
@@ -300,12 +330,12 @@ public class ChessGUI extends SimpleGui {
         }
     }
 
-    private GuiElementBuilder createUtilityButton(GameUtility utility, Runnable action) {
+    protected GuiElementBuilder createUtilityButton(GameUtility utility, Runnable action) {
         return new GuiElementBuilder(Items.GRAY_DYE)
                 .setCustomModelData(utility.modelData)
                 .setName(utility.displayName)
                 .setCallback((index, type, actionType, gui) -> {
-                    if (game.isGameActive() || utility == GameUtility.EXIT_BUTTON) {
+                    if ((game != null && game.isGameActive()) || utility == GameUtility.EXIT_BUTTON) {
                         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
                         action.run();
                     } else {
@@ -337,6 +367,11 @@ public class ChessGUI extends SimpleGui {
     }
 
     private GuiElementBuilder createPromotionOption(PieceType pieceType) {
+        if (game == null) {
+            // Fallback for practice mode - this shouldn't be called
+            return new GuiElementBuilder(Items.BARRIER).setName(Component.literal("§cError"));
+        }
+
         ChessPiece piece = ChessPiece.fromColorAndType(game.getPlayerColor(player), pieceType);
         GameUtility utility = switch (pieceType) {
             case QUEEN -> GameUtility.PROMOTE_QUEEN;
@@ -357,32 +392,38 @@ public class ChessGUI extends SimpleGui {
                 });
     }
 
-    private void handleResign() {
+    protected void handleResign() {
+        if (game == null) return;
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.RESIGN);
         game.resign(player);
     }
 
-    private void handleOfferDraw() {
+    protected void handleOfferDraw() {
+        if (game == null) return;
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.DRAW_OFFER);
         game.offerDraw(player);
     }
 
-    private void handleAcceptDraw() {
+    protected void handleAcceptDraw() {
+        if (game == null) return;
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SUCCESS);
         game.respondToDraw(player, true);
     }
 
-    private void handleDeclineDraw() {
+    protected void handleDeclineDraw() {
+        if (game == null) return;
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
         game.respondToDraw(player, false);
     }
 
-    private void handleCancelDrawOffer() {
+    protected void handleCancelDrawOffer() {
+        if (game == null) return;
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
         game.cancelDrawOffer(player);
     }
 
-    private void handleAnalyze() {
+    protected void handleAnalyze() {
+        if (game == null) return;
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ANALYSIS);
         if (game.isAnalysisMode()) {
             player.sendSystemMessage(Component.literal("§dAnalysis mode already enabled."));
@@ -392,15 +433,36 @@ public class ChessGUI extends SimpleGui {
         }
     }
 
-    private void handleHint() {
-        if (!game.isPlayerTurn(player) && !game.isAnalysisMode()) {
+    protected void handleHint() {
+        if (game != null && !game.isPlayerTurn(player) && !game.isAnalysisMode()) {
             ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
             player.sendSystemMessage(Component.literal("§cIt's not your turn to get a hint."));
             return;
         }
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.HINT);
-        StockfishIntegration.getInstance().requestHint(game.getBoard().toFEN(), hint -> {
+        StockfishIntegration.getInstance().requestHint(getBoard().toFEN(), hint -> {
             player.sendSystemMessage(Component.literal("§bHint: " + hint));
         });
+    }
+
+    // Abstract-like methods that subclasses can override
+    protected ChessBoard getBoard() {
+        return game != null ? game.getBoard() : new ChessBoard();
+    }
+
+    protected Set<ChessPosition> getValidMoves() {
+        return game != null ? game.getValidMoves() : new HashSet<>();
+    }
+
+    protected ChessPosition getSelectedSquare() {
+        return game != null ? game.getSelectedSquare() : null;
+    }
+
+    protected List<ChessMove> getMoveHistory() {
+        return getBoard().getMoveHistory();
+    }
+
+    protected PieceColor getBoardPerspective() {
+        return playerColor;
     }
 }

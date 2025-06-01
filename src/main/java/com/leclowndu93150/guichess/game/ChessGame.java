@@ -226,17 +226,7 @@ public class ChessGame {
         ChessPiece piece = board.getPiece(position);
         PieceColor playerColorForSelection = analysisMode ? board.getCurrentTurn() : getPlayerColor(player);
 
-
-        if (piece != null &&
-                ((playerColorForSelection == PieceColor.WHITE && piece.isWhite()) ||
-                        (playerColorForSelection == PieceColor.BLACK && piece.isBlack()))) {
-
-            selectedSquare = position;
-            validMoves = getValidMovesFrom(position);
-            updatePlayerGUIs();
-            return true;
-        }
-
+        // Priority 1: If we have a selection and this is a valid move (including captures), make the move
         if (selectedSquare != null && validMoves.contains(position)) {
             if (analysisMode) { // In analysis mode, just make the move for display
                 ChessMove tempMove = new ChessMove(selectedSquare, position); // Simplified move for analysis display
@@ -246,7 +236,6 @@ public class ChessGame {
                 updatePlayerGUIs();
                 return true;
             }
-
 
             ChessPiece selectedPieceOnBoard = board.getPiece(selectedSquare);
 
@@ -260,6 +249,18 @@ public class ChessGame {
             return makeMove(player, selectedSquare, position, null);
         }
 
+        // Priority 2: If there's a piece at this position that belongs to the player, select it
+        if (piece != null &&
+                ((playerColorForSelection == PieceColor.WHITE && piece.isWhite()) ||
+                        (playerColorForSelection == PieceColor.BLACK && piece.isBlack()))) {
+
+            selectedSquare = position;
+            validMoves = getValidMovesFrom(position);
+            updatePlayerGUIs();
+            return true;
+        }
+
+        // Priority 3: Deselect if clicking on invalid square
         selectedSquare = null;
         validMoves.clear();
         updatePlayerGUIs();
