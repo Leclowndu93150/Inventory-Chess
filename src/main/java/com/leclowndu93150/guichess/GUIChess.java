@@ -53,4 +53,7 @@ public class GUIChess {
     //TODO: add warning when 1 min left, 10s left (on modes where there is a lot of time) (in chat message with a sound probably)
     //TODO: Valid move textures (for empty slots) is available at guichess/board/valid_(color)_square.png
     //TODO: after match ended update the client inventory again otherwise the pieces are still there
+    //TODO: instead of "Chess Game", you have Chess Game against {Player}
+    //TODO: Implement Forfeiting  and make sure to add a confirm mechanic
+    //TODO:Optional but we can hear when our opponents click their gui it's annoying.
 }
