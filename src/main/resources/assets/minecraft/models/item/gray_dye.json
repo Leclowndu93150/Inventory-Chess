@@ -76,601 +76,601 @@
     {
       "model": "guichess:item/gray_dye_white_king_light",
       "predicate": {
-        "minecraft:custom_model_data": 2000.0
+        "minecraft:custom_model_data": 500.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2001.0
+        "minecraft:custom_model_data": 501.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2002.0
+        "minecraft:custom_model_data": 502.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2003.0
+        "minecraft:custom_model_data": 503.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2004.0
+        "minecraft:custom_model_data": 504.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2005.0
+        "minecraft:custom_model_data": 505.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2006.0
+        "minecraft:custom_model_data": 506.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2007.0
+        "minecraft:custom_model_data": 507.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_check_light",
       "predicate": {
-        "minecraft:custom_model_data": 2008.0
+        "minecraft:custom_model_data": 508.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_king_check_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2009.0
+        "minecraft:custom_model_data": 509.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_queen_light",
       "predicate": {
-        "minecraft:custom_model_data": 2010.0
+        "minecraft:custom_model_data": 510.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_queen_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2011.0
+        "minecraft:custom_model_data": 511.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_queen_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2012.0
+        "minecraft:custom_model_data": 512.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_queen_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2013.0
+        "minecraft:custom_model_data": 513.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_queen_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2014.0
+        "minecraft:custom_model_data": 514.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_queen_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2015.0
+        "minecraft:custom_model_data": 515.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_queen_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2016.0
+        "minecraft:custom_model_data": 516.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_queen_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2017.0
+        "minecraft:custom_model_data": 517.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_rook_light",
       "predicate": {
-        "minecraft:custom_model_data": 2018.0
+        "minecraft:custom_model_data": 518.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_rook_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2019.0
+        "minecraft:custom_model_data": 519.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_rook_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2020.0
+        "minecraft:custom_model_data": 520.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_rook_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2021.0
+        "minecraft:custom_model_data": 521.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_rook_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2022.0
+        "minecraft:custom_model_data": 522.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_rook_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2023.0
+        "minecraft:custom_model_data": 523.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_rook_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2024.0
+        "minecraft:custom_model_data": 524.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_rook_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2025.0
+        "minecraft:custom_model_data": 525.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_bishop_light",
       "predicate": {
-        "minecraft:custom_model_data": 2026.0
+        "minecraft:custom_model_data": 526.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_bishop_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2027.0
+        "minecraft:custom_model_data": 527.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_bishop_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2028.0
+        "minecraft:custom_model_data": 528.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_bishop_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2029.0
+        "minecraft:custom_model_data": 529.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_bishop_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2030.0
+        "minecraft:custom_model_data": 530.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_bishop_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2031.0
+        "minecraft:custom_model_data": 531.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_bishop_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2032.0
+        "minecraft:custom_model_data": 532.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_bishop_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2033.0
+        "minecraft:custom_model_data": 533.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_knight_light",
       "predicate": {
-        "minecraft:custom_model_data": 2034.0
+        "minecraft:custom_model_data": 534.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_knight_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2035.0
+        "minecraft:custom_model_data": 535.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_knight_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2036.0
+        "minecraft:custom_model_data": 536.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_knight_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2037.0
+        "minecraft:custom_model_data": 537.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_knight_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2038.0
+        "minecraft:custom_model_data": 538.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_knight_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2039.0
+        "minecraft:custom_model_data": 539.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_knight_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2040.0
+        "minecraft:custom_model_data": 540.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_knight_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2041.0
+        "minecraft:custom_model_data": 541.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_pawn_light",
       "predicate": {
-        "minecraft:custom_model_data": 2042.0
+        "minecraft:custom_model_data": 542.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_pawn_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2043.0
+        "minecraft:custom_model_data": 543.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_pawn_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2044.0
+        "minecraft:custom_model_data": 544.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_pawn_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2045.0
+        "minecraft:custom_model_data": 545.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_pawn_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2046.0
+        "minecraft:custom_model_data": 546.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_pawn_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2047.0
+        "minecraft:custom_model_data": 547.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_pawn_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2048.0
+        "minecraft:custom_model_data": 548.0
       }
     },
     {
       "model": "guichess:item/gray_dye_white_pawn_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2049.0
+        "minecraft:custom_model_data": 549.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_light",
       "predicate": {
-        "minecraft:custom_model_data": 2050.0
+        "minecraft:custom_model_data": 550.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2051.0
+        "minecraft:custom_model_data": 551.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2052.0
+        "minecraft:custom_model_data": 552.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2053.0
+        "minecraft:custom_model_data": 553.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2054.0
+        "minecraft:custom_model_data": 554.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2055.0
+        "minecraft:custom_model_data": 555.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2056.0
+        "minecraft:custom_model_data": 556.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2057.0
+        "minecraft:custom_model_data": 557.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_check_light",
       "predicate": {
-        "minecraft:custom_model_data": 2058.0
+        "minecraft:custom_model_data": 558.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_king_check_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2059.0
+        "minecraft:custom_model_data": 559.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_queen_light",
       "predicate": {
-        "minecraft:custom_model_data": 2060.0
+        "minecraft:custom_model_data": 560.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_queen_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2061.0
+        "minecraft:custom_model_data": 561.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_queen_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2062.0
+        "minecraft:custom_model_data": 562.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_queen_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2063.0
+        "minecraft:custom_model_data": 563.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_queen_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2064.0
+        "minecraft:custom_model_data": 564.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_queen_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2065.0
+        "minecraft:custom_model_data": 565.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_queen_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2066.0
+        "minecraft:custom_model_data": 566.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_queen_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2067.0
+        "minecraft:custom_model_data": 567.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_rook_light",
       "predicate": {
-        "minecraft:custom_model_data": 2068.0
+        "minecraft:custom_model_data": 568.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_rook_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2069.0
+        "minecraft:custom_model_data": 569.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_rook_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2070.0
+        "minecraft:custom_model_data": 570.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_rook_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2071.0
+        "minecraft:custom_model_data": 571.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_rook_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2072.0
+        "minecraft:custom_model_data": 572.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_rook_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2073.0
+        "minecraft:custom_model_data": 573.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_rook_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2074.0
+        "minecraft:custom_model_data": 574.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_rook_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2075.0
+        "minecraft:custom_model_data": 575.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_bishop_light",
       "predicate": {
-        "minecraft:custom_model_data": 2076.0
+        "minecraft:custom_model_data": 576.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_bishop_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2077.0
+        "minecraft:custom_model_data": 577.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_bishop_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2078.0
+        "minecraft:custom_model_data": 578.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_bishop_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2079.0
+        "minecraft:custom_model_data": 579.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_bishop_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2080.0
+        "minecraft:custom_model_data": 580.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_bishop_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2081.0
+        "minecraft:custom_model_data": 581.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_bishop_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2082.0
+        "minecraft:custom_model_data": 582.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_bishop_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2083.0
+        "minecraft:custom_model_data": 583.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_knight_light",
       "predicate": {
-        "minecraft:custom_model_data": 2084.0
+        "minecraft:custom_model_data": 584.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_knight_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2085.0
+        "minecraft:custom_model_data": 585.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_knight_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2086.0
+        "minecraft:custom_model_data": 586.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_knight_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2087.0
+        "minecraft:custom_model_data": 587.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_knight_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2088.0
+        "minecraft:custom_model_data": 588.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_knight_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2089.0
+        "minecraft:custom_model_data": 589.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_knight_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2090.0
+        "minecraft:custom_model_data": 590.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_knight_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2091.0
+        "minecraft:custom_model_data": 591.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_pawn_light",
       "predicate": {
-        "minecraft:custom_model_data": 2092.0
+        "minecraft:custom_model_data": 592.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_pawn_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2093.0
+        "minecraft:custom_model_data": 593.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_pawn_selected_light",
       "predicate": {
-        "minecraft:custom_model_data": 2094.0
+        "minecraft:custom_model_data": 594.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_pawn_selected_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2095.0
+        "minecraft:custom_model_data": 595.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_pawn_capture_light",
       "predicate": {
-        "minecraft:custom_model_data": 2096.0
+        "minecraft:custom_model_data": 596.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_pawn_capture_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2097.0
+        "minecraft:custom_model_data": 597.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_pawn_lastmove_light",
       "predicate": {
-        "minecraft:custom_model_data": 2098.0
+        "minecraft:custom_model_data": 598.0
       }
     },
     {
       "model": "guichess:item/gray_dye_black_pawn_lastmove_dark",
       "predicate": {
-        "minecraft:custom_model_data": 2099.0
+        "minecraft:custom_model_data": 599.0
       }
     },
     {

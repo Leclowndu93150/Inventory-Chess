@@ -45,16 +45,12 @@ public class GUIChess {
         LOGGER.info("Chess commands registered");
     }
 
-    //TODO when player dies while a match is going it will flicker between the respawn screen and the chess match
-    //TODO: WHY THE FUCK CAN WE EAT THE KING ? We just need to checkmate
-    //TODO: improve the SquareGenerator to take all the textures necessary and the background. make new ones (red but kinda cream red you get me ?), make quares for last moved, make squared for valid moves. and then overlay those for each available chess piece. also update the datagen to reflect those changes (and also the enum). btw each chess piece is 16x16 (just in case)
-    //TODO: even tho i chose a mode it always defaults to blitz 5 min
-    //TODO: add a mode to randomize the side when challenging sometone
-    //TODO: add warning when 1 min left, 10s left (on modes where there is a lot of time) (in chat message with a sound probably)
-    //TODO: Valid move textures (for empty slots) is available at guichess/board/valid_(color)_square.png
-    //TODO: after match ended update the client inventory again otherwise the pieces are still there
-    //TODO: instead of "Chess Game", you have Chess Game against {Player}
-    //TODO: Implement Forfeiting  and make sure to add a confirm mechanic
-    //TODO:Optional but we can hear when our opponents click their gui it's annoying.
 
+    //TODO: add a mode to randomize the side when challenging sometone
+    //TODO: after match ended update the client inventory again otherwise the pieces are still there
+    //TODO: Implement Forfeiting  and make sure to add a confirm mechanic
+    //TODO: Add a sound when opponent played (fix sound effets with check etc, and put the kind in check texture like how the pieces can be eaten), add breaking sound when we get eaten too, like when we eat someone
+    //TODO: don't delete player's inventories when in a game or anything, just save it until game ended
+    //TODO: don't allow the king to move if it's going to put it in a check state
+    //TODO: also fix the check system and checkmate
 }

@@ -14,6 +14,7 @@ import com.leclowndu93150.guichess.game.ChessBoard;
 import com.leclowndu93150.guichess.game.ChessGame;
 import com.leclowndu93150.guichess.game.GameManager;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
+import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
 import com.leclowndu93150.guichess.util.PieceOverlayHelper;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
@@ -536,5 +537,37 @@ public class ChessGUI extends SimpleGui {
 
     protected PieceColor getBoardPerspective() {
         return playerColor;
+    }
+
+    private void debugModelData(ChessPiece piece, ChessPosition position, int modelData) {
+        if (player.getName().getString().equals("Dev")) { // Replace with your MC username for debug
+            String overlayKey = piece.modelName;
+            boolean isLightSquare = (position.file + position.rank) % 2 == 0;
+
+            if (position.equals(getSelectedSquare())) {
+                overlayKey += isLightSquare ? "_selected_light" : "_selected_dark";
+            } else {
+                overlayKey += isLightSquare ? "_light" : "_dark";
+            }
+
+            Integer expectedModelData = OverlayModelDataRegistry.getModelData(overlayKey);
+
+            if (expectedModelData != null && expectedModelData != modelData) {
+                player.sendSystemMessage(Component.literal(
+                        "§cModel data mismatch for " + overlayKey +
+                                ": expected " + expectedModelData + " but got " + modelData
+                ));
+            }
+
+            // Also log all available overlays for this piece
+            if (Math.random() < 0.01) { // 1% chance to avoid spam
+                player.sendSystemMessage(Component.literal("§7Available overlays for " + piece.modelName + ":"));
+                OverlayModelDataRegistry.getAllModelData().entrySet().stream()
+                        .filter(e -> e.getKey().startsWith(piece.modelName))
+                        .forEach(e -> player.sendSystemMessage(Component.literal(
+                                "§7  " + e.getKey() + " -> " + e.getValue()
+                        )));
+            }
+        }
     }
 }

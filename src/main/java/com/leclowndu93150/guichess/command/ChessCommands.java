@@ -7,6 +7,7 @@ import com.leclowndu93150.guichess.game.*;
 import com.leclowndu93150.guichess.gui.ChessGUI;
 import com.leclowndu93150.guichess.gui.PracticeBoardGUI;
 import com.leclowndu93150.guichess.gui.SpectatorGUI;
+import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -16,8 +17,12 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomModelData;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -25,6 +30,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @EventBusSubscriber
@@ -120,7 +126,37 @@ public class ChessCommands {
                                 .then(Commands.literal("unbusy")
                                         .then(Commands.argument("player", EntityArgument.player())
                                                 .suggests(ONLINE_PLAYER_SUGGESTIONS)
-                                                .executes(ChessCommands::adminUnbusyPlayer)))));
+                                                .executes(ChessCommands::adminUnbusyPlayer)))
+                                .then(Commands.literal("testoverlay")
+                                        .requires(source -> source.hasPermission(2))
+                                        .executes(context -> {
+                                            ServerPlayer player = context.getSource().getPlayerOrException();
+                                            player.sendSystemMessage(Component.literal("§6=== Chess Overlay Model Data Test ==="));
+
+                                            // Test a few overlay model data values
+                                            Map<String, Integer> overlayData = OverlayModelDataRegistry.getAllModelData();
+                                            int count = 0;
+                                            for (Map.Entry<String, Integer> entry : overlayData.entrySet()) {
+                                                if (count++ < 10) { // Show first 10
+                                                    ItemStack testItem = new ItemStack(Items.GRAY_DYE);
+                                                    testItem.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(entry.getValue()));
+
+                                                    player.sendSystemMessage(Component.literal(
+                                                            "§7" + entry.getKey() + " -> Model Data: " + entry.getValue()
+                                                    ));
+
+                                                    // Give the player one of each to test
+                                                    if (count <= 5) {
+                                                        testItem.set(DataComponents.CUSTOM_NAME, Component.literal("§e" + entry.getKey()));
+                                                        player.getInventory().add(testItem);
+                                                    }
+                                                }
+                                            }
+
+                                            player.sendSystemMessage(Component.literal("§aGave you 5 test overlay items. Total overlays: " + overlayData.size()));
+                                            return 1;
+                                        }))));
+
     }
 
     private static int createGameWithDefaultTime(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

@@ -3,12 +3,15 @@ package com.leclowndu93150.guichess.datagen;
 import com.leclowndu93150.guichess.chess.board.BoardSquare;
 import com.leclowndu93150.guichess.chess.pieces.ChessPiece;
 import com.leclowndu93150.guichess.chess.util.GameUtility;
+import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.model.generators.ItemModelBuilder;
 import net.neoforged.neoforge.client.model.generators.ItemModelProvider;
 import net.neoforged.neoforge.client.model.generators.ModelFile;
 import net.neoforged.neoforge.common.data.ExistingFileHelper;
+
+import java.util.Map;
 
 public class ChessItemModelProvider extends ItemModelProvider {
 
@@ -56,61 +59,29 @@ public class ChessItemModelProvider extends ItemModelProvider {
 
         System.out.println("Generated models for:");
         System.out.println("- " + ChessPiece.values().length + " chess pieces");
-        System.out.println("- " + (ChessPiece.values().length * 8 + 4) + " piece overlay variations"); // 8 standard + 2 check for kings
+        System.out.println("- " + OverlayModelDataRegistry.getAllModelData().size() + " piece overlay variations");
         System.out.println("- " + BoardSquare.values().length + " board squares");
         System.out.println("- " + GameUtility.values().length + " game utility items");
     }
 
     private void registerPieceOverlays(ItemModelBuilder grayDyeBuilder) {
-        int modelDataCounter = 2000; // Starting range for piece overlays
+        // Use the centralized registry to ensure consistent model data values
+        Map<String, Integer> overlayModelData = OverlayModelDataRegistry.getAllModelData();
 
-        for (ChessPiece piece : ChessPiece.values()) {
-            String baseName = piece.modelName;
+        for (Map.Entry<String, Integer> entry : overlayModelData.entrySet()) {
+            String modelName = entry.getKey();
+            Integer modelData = entry.getValue();
 
-            // Register all overlay variations for this piece
-            String[] overlayTypes = {
-                    "_light",           // Normal on light square
-                    "_dark",            // Normal on dark square
-                    "_selected_light",  // Selected on light square
-                    "_selected_dark",   // Selected on dark square
-                    "_capture_light",   // Can be captured on light square
-                    "_capture_dark",    // Can be captured on dark square
-                    "_lastmove_light",  // Last moved on light square
-                    "_lastmove_dark"    // Last moved on dark square
-            };
+            withExistingParent("gray_dye_" + modelName, "item/generated")
+                    .texture("layer0", modLoc("item/pieces_overlay/" + modelName));
 
-            for (String overlayType : overlayTypes) {
-                String modelName = baseName + overlayType;
-
-                withExistingParent("gray_dye_" + modelName, "item/generated")
-                        .texture("layer0", modLoc("item/pieces_overlay/" + modelName));
-
-                grayDyeBuilder.override()
-                        .predicate(ResourceLocation.parse("custom_model_data"), modelDataCounter)
-                        .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + modelName)));
-
-                modelDataCounter++;
-            }
-
-            // Special check overlays for kings only
-            if (piece.getType().name().equals("KING")) {
-                String[] checkOverlays = {"_check_light", "_check_dark"};
-
-                for (String checkOverlay : checkOverlays) {
-                    String modelName = baseName + checkOverlay;
-
-                    withExistingParent("gray_dye_" + modelName, "item/generated")
-                            .texture("layer0", modLoc("item/pieces_overlay/" + modelName));
-
-                    grayDyeBuilder.override()
-                            .predicate(ResourceLocation.parse("custom_model_data"), modelDataCounter)
-                            .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + modelName)));
-
-                    modelDataCounter++;
-                }
-            }
+            grayDyeBuilder.override()
+                    .predicate(ResourceLocation.parse("custom_model_data"), modelData)
+                    .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + modelName)));
         }
 
-        System.out.println("Piece overlay model data range: 2000-" + (modelDataCounter - 1));
+        int minModelData = overlayModelData.values().stream().min(Integer::compareTo).orElse(2000);
+        int maxModelData = overlayModelData.values().stream().max(Integer::compareTo).orElse(2999);
+        System.out.println("Piece overlay model data range: " + minModelData + "-" + maxModelData);
     }
 }

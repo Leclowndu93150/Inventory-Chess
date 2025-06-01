@@ -3,7 +3,6 @@ package com.leclowndu93150.guichess.util;
 import com.leclowndu93150.guichess.chess.pieces.ChessPiece;
 import com.leclowndu93150.guichess.chess.pieces.PieceType;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class PieceOverlayHelper {
@@ -19,36 +18,6 @@ public class PieceOverlayHelper {
         LASTMOVE_DARK,
         CHECK_LIGHT,    // Kings only
         CHECK_DARK      // Kings only
-    }
-
-    private static final Map<String, Integer> overlayModelData = new HashMap<>();
-
-    static {
-        initializeOverlayModelData();
-    }
-
-    private static void initializeOverlayModelData() {
-        int modelDataCounter = 2000; // Starting range for piece overlays
-
-        for (ChessPiece piece : ChessPiece.values()) {
-            String baseName = piece.modelName;
-
-            // Standard overlays for all pieces
-            overlayModelData.put(baseName + "_light", modelDataCounter++);
-            overlayModelData.put(baseName + "_dark", modelDataCounter++);
-            overlayModelData.put(baseName + "_selected_light", modelDataCounter++);
-            overlayModelData.put(baseName + "_selected_dark", modelDataCounter++);
-            overlayModelData.put(baseName + "_capture_light", modelDataCounter++);
-            overlayModelData.put(baseName + "_capture_dark", modelDataCounter++);
-            overlayModelData.put(baseName + "_lastmove_light", modelDataCounter++);
-            overlayModelData.put(baseName + "_lastmove_dark", modelDataCounter++);
-
-            // Special check overlays for kings only
-            if (piece.getType() == PieceType.KING) {
-                overlayModelData.put(baseName + "_check_light", modelDataCounter++);
-                overlayModelData.put(baseName + "_check_dark", modelDataCounter++);
-            }
-        }
     }
 
     /**
@@ -80,7 +49,7 @@ public class PieceOverlayHelper {
         }
 
         String key = piece.modelName + suffix;
-        Integer modelData = overlayModelData.get(key);
+        Integer modelData = OverlayModelDataRegistry.getModelData(key);
 
         // Return overlay model data if found, otherwise fall back to original piece model data
         return modelData != null ? modelData : piece.modelData;
@@ -127,6 +96,6 @@ public class PieceOverlayHelper {
      * @return Map of overlay key to model data value
      */
     public static Map<String, Integer> getAllOverlayModelData() {
-        return new HashMap<>(overlayModelData);
+        return OverlayModelDataRegistry.getAllModelData();
     }
 }
