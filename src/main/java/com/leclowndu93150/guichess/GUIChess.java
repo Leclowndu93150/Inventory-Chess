@@ -1,15 +1,16 @@
 package com.leclowndu93150.guichess;
 
 import com.leclowndu93150.guichess.command.ChessCommands;
+import com.leclowndu93150.guichess.events.PlayerEventHandler;
 import com.leclowndu93150.guichess.game.GameManager;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ public class GUIChess {
 
     public GUIChess(IEventBus modEventBus, ModContainer modContainer) {
         NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(PlayerEventHandler.class);
     }
 
     @SubscribeEvent
@@ -37,8 +39,9 @@ public class GUIChess {
         LOGGER.info("GUIChess shutdown complete");
     }
 
-    //TODO, Force the client to stay in the chess gui
-    //TODO, end the game if player leaves,
-    //TODO, click to select piece, click another place to move it.
-    //TODO, play sounds available in vanilla
+    @SubscribeEvent
+    public void onRegisterCommands(RegisterCommandsEvent event) {
+        ChessCommands.registerCommands(event);
+        LOGGER.info("Chess commands registered");
+    }
 }

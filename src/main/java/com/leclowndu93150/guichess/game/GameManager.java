@@ -47,6 +47,10 @@ public class GameManager {
         return instance;
     }
 
+    public MinecraftServer getServer() {
+        return server;
+    }
+
     public void initialize(MinecraftServer server) {
         this.server = server;
         this.dataDirectory = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("chess_data");
@@ -68,9 +72,31 @@ public class GameManager {
             scheduler.scheduleAtFixedRate(this::tickAllGames, 0, 1, TimeUnit.SECONDS);
             scheduler.scheduleAtFixedRate(this::cleanupExpiredChallenges, 30, 30, TimeUnit.SECONDS);
             scheduler.scheduleAtFixedRate(this::savePlayerData, 300, 300, TimeUnit.SECONDS);
+            scheduler.scheduleAtFixedRate(this::reopenClosedGameGUIs, 2, 2, TimeUnit.SECONDS);
         } catch (RejectedExecutionException e) {
             System.err.println("[GUIChess] Failed to schedule GameManager tasks: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    private void reopenClosedGameGUIs() {
+        try {
+            for (ChessGame game : activeGames.values()) {
+                if (!game.isGameActive()) continue;
+
+                ChessGUI whiteGUI = playerGUIs.get(game.getWhitePlayer().getUUID());
+                ChessGUI blackGUI = playerGUIs.get(game.getBlackPlayer().getUUID());
+
+                if (whiteGUI != null && !whiteGUI.isOpen()) {
+                    whiteGUI.open();
+                }
+
+                if (blackGUI != null && !blackGUI.isOpen()) {
+                    blackGUI.open();
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[GUIChess] Error during GUI reopen check: " + e.getMessage());
         }
     }
 
@@ -190,7 +216,6 @@ public class GameManager {
             return false;
         }
 
-        // Check if players are busy, but exclude the current challenge being accepted
         if (isPlayerBusyExcluding(challenge.challenger, challengeId) || isPlayerBusyExcluding(challenge.challenged, challengeId)) {
             player.sendSystemMessage(Component.literal("§cOne of the players became busy. Cannot start game."));
             if (!challenge.challenger.equals(player)) {
@@ -368,7 +393,6 @@ public class GameManager {
     }
 
     private void saveAllGameData() {
-        // Placeholder for saving active games if needed for recovery
     }
 
     public void adminForceEndGameForPlayer(ServerPlayer player) {

@@ -18,63 +18,33 @@ public class ChessItemModelProvider extends ItemModelProvider {
 
     @Override
     protected void registerModels() {
-        // Generate base gray_dye model
-        generateBaseGrayDyeModel();
+        ItemModelBuilder grayDyeBuilder = withExistingParent("gray_dye", "item/generated")
+                .texture("layer0", "minecraft:item/gray_dye");
 
-        // Generate all chess piece models
-        generateChessPieceModels();
-
-        // Generate board square models
-        generateBoardSquareModels();
-
-        // Generate utility item models
-        generateUtilityModels();
-    }
-
-    private void generateBaseGrayDyeModel() {
-        // Base gray_dye model (vanilla)
-        withExistingParent("gray_dye", "item/generated")
-                .texture("layer0", "item/gray_dye");
-    }
-
-    private void generateChessPieceModels() {
         for (ChessPiece piece : ChessPiece.values()) {
-            // Create model with custom model data override
-            ItemModelBuilder builder = withExistingParent("gray_dye_" + piece.modelName, "item/generated")
+            withExistingParent("gray_dye_" + piece.modelName, "item/generated")
                     .texture("layer0", modLoc("item/chess/" + piece.modelName));
 
-            // Add this as an override to the base gray_dye
-            getBuilder("gray_dye")
-                    .override()
-                    .predicate(ResourceLocation.withDefaultNamespace("custom_model_data"), piece.modelData)
+            grayDyeBuilder.override()
+                    .predicate(ResourceLocation.parse("custom_model_data"), piece.modelData)
                     .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + piece.modelName)));
         }
-    }
 
-    private void generateBoardSquareModels() {
         for (BoardSquare square : BoardSquare.values()) {
-            // Create model for board squares
-            ItemModelBuilder builder = withExistingParent("gray_dye_" + square.modelName, "item/generated")
+            withExistingParent("gray_dye_" + square.modelName, "item/generated")
                     .texture("layer0", modLoc("item/board/" + square.modelName));
 
-            // Add override to base gray_dye
-            getBuilder("gray_dye")
-                    .override()
-                    .predicate(ResourceLocation.withDefaultNamespace("custom_model_data"), square.modelData)
+            grayDyeBuilder.override()
+                    .predicate(ResourceLocation.parse("custom_model_data"), square.modelData)
                     .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + square.modelName)));
         }
-    }
 
-    private void generateUtilityModels() {
         for (GameUtility utility : GameUtility.values()) {
-            // Create model for utility items
-            ItemModelBuilder builder = withExistingParent("gray_dye_" + utility.modelName, "item/generated")
+            withExistingParent("gray_dye_" + utility.modelName, "item/generated")
                     .texture("layer0", modLoc("item/ui/" + utility.modelName));
 
-            // Add override to base gray_dye
-            getBuilder("gray_dye")
-                    .override()
-                    .predicate(ResourceLocation.withDefaultNamespace("custom_model_data"), utility.modelData)
+            grayDyeBuilder.override()
+                    .predicate(ResourceLocation.parse("custom_model_data"), utility.modelData)
                     .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + utility.modelName)));
         }
     }
