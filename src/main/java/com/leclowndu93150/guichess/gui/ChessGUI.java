@@ -100,10 +100,12 @@ public class ChessGUI extends SimpleGui {
 
             int chessRank, chessFile;
             if (getBoardPerspective() == PieceColor.WHITE) {
-                chessRank = row;
+                // White perspective: rank 0 (White pieces) at bottom (row 7)
+                chessRank = 7 - row;
                 chessFile = col;
             } else {
-                chessRank = 7 - row;
+                // Black perspective: rank 7 (White pieces) at top (row 0)
+                chessRank = row;
                 chessFile = 7 - col;
             }
 
@@ -145,7 +147,7 @@ public class ChessGUI extends SimpleGui {
                         //builder.setCustomModelData(BoardSquare.CAPTURE_MOVE.modelData);
                     } else {
                         //TODO FIX
-                        //builder.setCustomModelData(BoardSquare.VALID_MOVE.modelData);
+                        builder.setCustomModelData(BoardSquare.VALID_MOVE.modelData);
                     }
                 }
             }
@@ -291,10 +293,10 @@ public class ChessGUI extends SimpleGui {
             turnIndicator = new GuiElementBuilder(Items.YELLOW_STAINED_GLASS)
                     .setName(Component.literal("§6Game Finished"));
         } else if (currentTurn == PieceColor.WHITE) {
-            turnIndicator = new GuiElementBuilder(Items.LIME_STAINED_GLASS)
+            turnIndicator = new GuiElementBuilder(Items.WHITE_STAINED_GLASS)
                     .setName(Component.literal("§fWhite's Move"));
         } else {
-            turnIndicator = new GuiElementBuilder(Items.RED_STAINED_GLASS)
+            turnIndicator = new GuiElementBuilder(Items.BLACK_STAINED_GLASS)
                     .setName(Component.literal("§8Black's Move"));
         }
         setSlot(44, turnIndicator);
