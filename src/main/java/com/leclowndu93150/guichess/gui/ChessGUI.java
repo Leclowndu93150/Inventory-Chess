@@ -36,6 +36,8 @@ public class ChessGUI extends SimpleGui {
     private ChessPosition promotionFrom;
     private ChessPosition promotionTo;
     private boolean autoReopen = true; // Can be disabled for death/respawn scenarios
+    
+    private boolean showingResignConfirmation = false;
 
     public ChessGUI(ServerPlayer player, ChessGame game, PieceColor playerColor) {
         super(MenuType.GENERIC_9x6, player, true);
@@ -91,6 +93,11 @@ public class ChessGUI extends SimpleGui {
 
         if (showingPromotionDialog) {
             setupPromotionGUI();
+            return;
+        }
+        
+        if (showingResignConfirmation) {
+            setupResignConfirmationGUI();
             return;
         }
 
@@ -298,8 +305,8 @@ public class ChessGUI extends SimpleGui {
         updateTimerDisplays();
         updateTurnIndicator();
 
+        // Place resign button above draw button (slot 62 - one row up from 71)
         setSlot(62, createUtilityButton(GameUtility.RESIGN_BUTTON, this::handleResign));
-        setSlot(17, createUtilityButton(GameUtility.RESIGN_BUTTON, this::handleResign));
 
         updateDrawButtons();
         setupAnalysisTools();
@@ -309,6 +316,9 @@ public class ChessGUI extends SimpleGui {
         updateTimerDisplays();
         updateTurnIndicator();
         updateDrawButtons();
+        
+        // Re-add resign button above draw button
+        setSlot(62, createUtilityButton(GameUtility.RESIGN_BUTTON, this::handleResign));
     }
 
     protected void updateTimerDisplays() {
@@ -448,11 +458,45 @@ public class ChessGUI extends SimpleGui {
                     updateBoard();
                 });
     }
+    
+    private void setupResignConfirmationGUI() {
+        // Clear the board
+        for (int i = 0; i < 72; i++) {
+            clearSlot(i);
+        }
+        
+        // Title
+        setSlot(22, new GuiElementBuilder(Items.PAPER)
+                .setName(Component.literal("§c§lConfirm Resignation"))
+                .addLoreLine(Component.literal("§7Are you sure you want to resign?"))
+                .addLoreLine(Component.literal("§7This action cannot be undone!")));
+        
+        // Confirm button (red wool)
+        setSlot(38, new GuiElementBuilder(Items.RED_WOOL)
+                .setName(Component.literal("§c§lYES, RESIGN"))
+                .addLoreLine(Component.literal("§7Click to forfeit the game"))
+                .setCallback((index, type, action, gui) -> {
+                    ChessSoundManager.playUISound(player, ChessSoundManager.UISound.RESIGN);
+                    showingResignConfirmation = false;
+                    game.resign(player);
+                }));
+        
+        // Cancel button (green wool)
+        setSlot(42, new GuiElementBuilder(Items.GREEN_WOOL)
+                .setName(Component.literal("§a§lCANCEL"))
+                .addLoreLine(Component.literal("§7Continue playing"))
+                .setCallback((index, type, action, gui) -> {
+                    ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
+                    showingResignConfirmation = false;
+                    updateBoard();
+                }));
+    }
 
     protected void handleResign() {
         if (game == null) return;
-        ChessSoundManager.playUISound(player, ChessSoundManager.UISound.RESIGN);
-        game.resign(player);
+        showingResignConfirmation = true;
+        ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
+        updateBoard();
     }
 
     protected void handleOfferDraw() {

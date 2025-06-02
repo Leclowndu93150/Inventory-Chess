@@ -46,13 +46,13 @@ public class GUIChess {
     }
 
 
-    //TODO: add a mode to randomize the side when challenging sometone
-    //TODO: after match ended update the client inventory again otherwise the pieces are still there
-    //TODO: Implement Forfeiting  and make sure to add a confirm mechanic
-    //TODO: Add a sound when opponent played (fix sound effets with check etc, and put the kind in check texture like how the pieces can be eaten), add breaking sound when we get eaten too, like when we eat someone
-    //TODO: don't delete player's inventories when in a game or anything, just save it until game ended
-    //TODO: don't allow the king to move if it's going to put it in a check state
-    //TODO: also fix the check system and checkmate
+    //DONE: add a mode to randomize the side when challenging someone - Added /chess challengerandom command
+    //DONE: after match ended update the client inventory again otherwise the pieces are still there - Fixed with proper inventory sync
+    //PARTIAL: Implement Forfeiting and make sure to add a confirm mechanic - Added confirmation dialog but resign button placement needs fixing
+    //TODO: Add a sound when opponent played (fix sound effets with check etc, and put the king in check texture like how the pieces can be eaten), add breaking sound when we get eaten too, like when we eat someone
+    //DONE: don't delete player's inventories when in a game or anything, just save it until game ended - Implemented inventory save/restore system
+    //DONE: don't allow the king to move if it's going to put it in a check state - Already implemented in getLegalMoves()
+    //TODO: Fix check detection not working properly - Added debug logging to investigate
 //    Add Stockfish support
 //    Can request up to 3 hints per game (configurable in the challenge menu)
 //

@@ -38,6 +38,9 @@ public class GameManager {
 
     // Time warning tracking
     private final Map<UUID, Set<Integer>> timeWarningsSent = new ConcurrentHashMap<>();
+    
+    // Saved inventories for players in games
+    private final Map<UUID, CompoundTag> savedInventories = new ConcurrentHashMap<>();
 
     private MinecraftServer server;
     private Path dataDirectory;
@@ -127,6 +130,9 @@ public class GameManager {
             System.out.println("[GUIChess] GameManager scheduler already shutdown or null.");
         }
 
+        // Clear saved inventories
+        savedInventories.clear();
+        
         savePlayerData();
         saveAllGameData();
     }
@@ -169,6 +175,10 @@ public class GameManager {
 
         spectatorGUIs.put(game.getGameId(), new ArrayList<>());
         timeWarningsSent.put(game.getGameId(), new HashSet<>());
+        
+        // Save player inventories before game starts
+        savePlayerInventory(whitePlayer);
+        savePlayerInventory(blackPlayer);
 
         whiteGUI.open();
         blackGUI.open();
@@ -237,6 +247,12 @@ public class GameManager {
     private void clearPlayerInventoryFromChessPieces(ServerPlayer player) {
         if (player != null && !player.hasDisconnected()) {
             server.execute(() -> {
+                // Restore saved inventory if we have one
+                CompoundTag savedInventory = savedInventories.remove(player.getUUID());
+                if (savedInventory != null) {
+                    player.getInventory().load(savedInventory.getList("Inventory", 10));
+                }
+                
                 // Force a full inventory update to ensure client syncs properly
                 player.inventoryMenu.broadcastChanges();
                 player.inventoryMenu.sendAllDataToRemote();
@@ -244,6 +260,16 @@ public class GameManager {
                 // Send container update packet to force client refresh
                 player.containerMenu.broadcastChanges();
             });
+        }
+    }
+    
+    private void savePlayerInventory(ServerPlayer player) {
+        if (player != null && !player.hasDisconnected()) {
+            CompoundTag tag = new CompoundTag();
+            ListTag inventoryTag = new ListTag();
+            player.getInventory().save(inventoryTag);
+            tag.put("Inventory", inventoryTag);
+            savedInventories.put(player.getUUID(), tag);
         }
     }
 
@@ -260,7 +286,7 @@ public class GameManager {
             return null;
         }
 
-        ChessChallenge challenge = new ChessChallenge(challenger, challenged, timeControl);
+        ChessChallenge challenge = new ChessChallenge(challenger, challenged, timeControl, randomizeSides);
         pendingChallenges.put(challenge.challengeId, challenge);
 
         String sideInfo = randomizeSides ? " (randomized sides)" : "";
@@ -289,9 +315,12 @@ public class GameManager {
 
         pendingChallenges.remove(challengeId);
 
-        // Check if challenge should have randomized sides (this would need to be stored in ChessChallenge)
-        // For now, we'll just use normal sides unless explicitly requested
-        createGame(challenge.challenger, challenge.challenged, challenge.timeControl);
+        // Create game with randomized sides if specified in challenge
+        if (challenge.randomizeSides) {
+            createGameWithRandomizedSides(challenge.challenger, challenge.challenged, challenge.timeControl);
+        } else {
+            createGame(challenge.challenger, challenge.challenged, challenge.timeControl);
+        }
 
         challenge.challenger.sendSystemMessage(Component.literal(
                 "§a" + player.getName().getString() + " accepted your challenge!"

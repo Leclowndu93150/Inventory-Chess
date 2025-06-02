@@ -12,12 +12,18 @@ public class ChessChallenge {
     public final TimeControl timeControl;
     public final long challengeTime;
     public final long expiryTime;
+    public final boolean randomizeSides;
 
     public ChessChallenge(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl) {
+        this(challenger, challenged, timeControl, false);
+    }
+    
+    public ChessChallenge(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl, boolean randomizeSides) {
         this.challengeId = UUID.randomUUID();
         this.challenger = challenger;
         this.challenged = challenged;
         this.timeControl = timeControl;
+        this.randomizeSides = randomizeSides;
         this.challengeTime = System.currentTimeMillis();
         this.expiryTime = challengeTime + 30000; // 30 second expiry
     }

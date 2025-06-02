@@ -57,10 +57,6 @@ public class ChessBoard {
         }
     }
 
-    public void setCurrentTurn(PieceColor turn) {
-        this.currentTurn = turn;
-    }
-
     public boolean makeMove(ChessMove move) {
         // Assumes move is already validated as legal by ChessGame calling getLegalMoves
         ChessPiece movingPiece = getPiece(move.from);
@@ -198,6 +194,7 @@ public class ChessBoard {
             return false; // Cannot capture king
         }
 
+
         return switch (piece.getType()) {
             case PAWN -> isValidPawnMove(move, piece);
             case ROOK -> isValidRookMove(move);
@@ -207,6 +204,7 @@ public class ChessBoard {
             case KING -> isValidKingMove(move, piece);
         };
     }
+
 
     private boolean isValidPawnMove(ChessMove move, ChessPiece piece) {
         int direction = piece.isWhite() ? 1 : -1;
@@ -273,7 +271,15 @@ public class ChessBoard {
         int currentRank = from.rank + dRank;
 
         while (currentFile != to.file || currentRank != to.rank) {
-            if (getPiece(new ChessPosition(currentFile, currentRank)) != null) return false;
+            ChessPosition checkPos = new ChessPosition(currentFile, currentRank);
+            ChessPiece blockingPiece = getPiece(checkPos);
+            if (blockingPiece != null) {
+                // Debug path blocking
+                if (from.file == to.file || from.rank == to.rank || Math.abs(to.file - from.file) == Math.abs(to.rank - from.rank)) {
+                    System.out.println("[Chess Debug] Path blocked from " + from.toNotation() + " to " + to.toNotation() + " by " + blockingPiece + " at " + checkPos.toNotation());
+                }
+                return false;
+            }
             currentFile += dFile;
             currentRank += dRank;
         }
@@ -282,27 +288,143 @@ public class ChessBoard {
 
     public boolean isInCheck(PieceColor color) {
         ChessPosition kingPos = findKing(color);
-        if (kingPos == null) return true; // Should not happen in a valid game
-        return isSquareAttacked(kingPos, color.opposite());
+        if (kingPos == null) {
+            System.err.println("[Chess Debug] No king found for color " + color);
+            return true; // Should not happen in a valid game
+        }
+        
+        // Check all opponent pieces to see if any can attack the king
+        PieceColor attackingColor = color.opposite();
+        
+        // Check for pawn attacks
+        if (isAttackedByPawn(kingPos, attackingColor)) {
+            System.out.println("[Chess Debug] " + color + " king at " + kingPos.toNotation() + " is in check by pawn!");
+            return true;
+        }
+        
+        // Check for knight attacks
+        if (isAttackedByKnight(kingPos, attackingColor)) {
+            System.out.println("[Chess Debug] " + color + " king at " + kingPos.toNotation() + " is in check by knight!");
+            return true;
+        }
+        
+        // Check for sliding piece attacks (bishop, rook, queen)
+        if (isAttackedBySlidingPiece(kingPos, attackingColor)) {
+            System.out.println("[Chess Debug] " + color + " king at " + kingPos.toNotation() + " is in check by sliding piece!");
+            return true;
+        }
+        
+        // Check for king attacks (adjacent squares)
+        if (isAttackedByKing(kingPos, attackingColor)) {
+            System.out.println("[Chess Debug] " + color + " king at " + kingPos.toNotation() + " is in check by king!");
+            return true;
+        }
+        
+        return false;
     }
 
     public boolean isSquareAttacked(ChessPosition pos, PieceColor attackingColor) {
-        for (int i = 0; i < 64; i++) {
-            ChessPiece attacker = board[i];
-            if (attacker != null && ((attackingColor == PieceColor.WHITE && attacker.isWhite()) || (attackingColor == PieceColor.BLACK && attacker.isBlack()))) {
-                ChessPosition attackerPos = ChessPosition.fromIndex(i);
-                // Use a simplified move for attack check; isPseudoLegalMove doesn't care about currentTurn
-                ChessMove attackAttempt = new ChessMove(attackerPos, pos);
-                if (isPseudoLegalMove(attackAttempt, attacker)) {
-                    // For pawns, ensure it's a capture move direction
-                    if (attacker.getType() == PieceType.PAWN) {
-                        int direction = attacker.isWhite() ? 1 : -1;
-                        if (pos.rank - attackerPos.rank == direction && Math.abs(pos.file - attackerPos.file) == 1) {
+        // Check if any piece of the attacking color can attack this square
+        return isAttackedByPawn(pos, attackingColor) ||
+               isAttackedByKnight(pos, attackingColor) ||
+               isAttackedBySlidingPiece(pos, attackingColor) ||
+               isAttackedByKing(pos, attackingColor);
+    }
+    
+    private boolean isAttackedByPawn(ChessPosition pos, PieceColor attackingColor) {
+        int direction = attackingColor == PieceColor.WHITE ? -1 : 1; // Reverse direction for attack check
+        
+        // Check the two squares from which a pawn could attack
+        ChessPosition[] attackSquares = {
+            new ChessPosition(pos.file - 1, pos.rank + direction),
+            new ChessPosition(pos.file + 1, pos.rank + direction)
+        };
+        
+        for (ChessPosition attackFrom : attackSquares) {
+            if (!attackFrom.isValid()) continue;
+            
+            ChessPiece piece = getPiece(attackFrom);
+            if (piece != null && piece.getType() == PieceType.PAWN && 
+                ((attackingColor == PieceColor.WHITE && piece.isWhite()) || 
+                 (attackingColor == PieceColor.BLACK && piece.isBlack()))) {
+                System.out.println("[Chess Debug] Pawn at " + attackFrom.toNotation() + " attacks " + pos.toNotation());
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private boolean isAttackedByKnight(ChessPosition pos, PieceColor attackingColor) {
+        // All possible knight move offsets
+        int[][] knightMoves = {
+            {-2, -1}, {-2, 1}, {-1, -2}, {-1, 2},
+            {1, -2}, {1, 2}, {2, -1}, {2, 1}
+        };
+        
+        for (int[] move : knightMoves) {
+            ChessPosition attackFrom = new ChessPosition(pos.file + move[0], pos.rank + move[1]);
+            if (!attackFrom.isValid()) continue;
+            
+            ChessPiece piece = getPiece(attackFrom);
+            if (piece != null && piece.getType() == PieceType.KNIGHT && 
+                ((attackingColor == PieceColor.WHITE && piece.isWhite()) || 
+                 (attackingColor == PieceColor.BLACK && piece.isBlack()))) {
+                System.out.println("[Chess Debug] Knight at " + attackFrom.toNotation() + " attacks " + pos.toNotation());
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private boolean isAttackedBySlidingPiece(ChessPosition pos, PieceColor attackingColor) {
+        // Check all 8 directions for sliding pieces
+        int[][] directions = {
+            {-1, -1}, {-1, 0}, {-1, 1}, {0, -1},
+            {0, 1}, {1, -1}, {1, 0}, {1, 1}
+        };
+        
+        for (int[] dir : directions) {
+            ChessPosition current = new ChessPosition(pos.file + dir[0], pos.rank + dir[1]);
+            
+            while (current.isValid()) {
+                ChessPiece piece = getPiece(current);
+                if (piece != null) {
+                    if ((attackingColor == PieceColor.WHITE && piece.isWhite()) || 
+                        (attackingColor == PieceColor.BLACK && piece.isBlack())) {
+                        // Check if this piece can attack along this direction
+                        boolean isDiagonal = (dir[0] != 0 && dir[1] != 0);
+                        boolean isStraight = (dir[0] == 0 || dir[1] == 0);
+                        
+                        if ((piece.getType() == PieceType.BISHOP && isDiagonal) ||
+                            (piece.getType() == PieceType.ROOK && isStraight) ||
+                            (piece.getType() == PieceType.QUEEN)) {
+                            System.out.println("[Chess Debug] " + piece.getType() + " at " + current.toNotation() + " attacks " + pos.toNotation());
                             return true;
                         }
-                    } else {
-                        return true;
                     }
+                    break; // Piece blocks further checking in this direction
+                }
+                current = new ChessPosition(current.file + dir[0], current.rank + dir[1]);
+            }
+        }
+        return false;
+    }
+    
+    private boolean isAttackedByKing(ChessPosition pos, PieceColor attackingColor) {
+        // Check all 8 adjacent squares for enemy king
+        for (int dFile = -1; dFile <= 1; dFile++) {
+            for (int dRank = -1; dRank <= 1; dRank++) {
+                if (dFile == 0 && dRank == 0) continue;
+                
+                ChessPosition attackFrom = new ChessPosition(pos.file + dFile, pos.rank + dRank);
+                if (!attackFrom.isValid()) continue;
+                
+                ChessPiece piece = getPiece(attackFrom);
+                if (piece != null && piece.getType() == PieceType.KING && 
+                    ((attackingColor == PieceColor.WHITE && piece.isWhite()) || 
+                     (attackingColor == PieceColor.BLACK && piece.isBlack()))) {
+                    System.out.println("[Chess Debug] King at " + attackFrom.toNotation() + " attacks " + pos.toNotation());
+                    return true;
                 }
             }
         }
@@ -488,14 +610,19 @@ public class ChessBoard {
         boolean inCheck = isInCheck(currentTurn);
         List<ChessMove> legalMovesCurrentPlayer = getLegalMovesForColor(currentTurn); // Need a specific method for this to avoid recursion
 
+        System.out.println("[Chess Debug] UpdateGameState: turn=" + currentTurn + ", inCheck=" + inCheck + ", legalMoves=" + legalMovesCurrentPlayer.size());
+
         if (legalMovesCurrentPlayer.isEmpty()) {
             if (inCheck) {
                 gameState = (currentTurn == PieceColor.WHITE) ? GameState.CHECKMATE_BLACK_WINS : GameState.CHECKMATE_WHITE_WINS;
+                System.out.println("[Chess Debug] CHECKMATE detected! Winner: " + (currentTurn == PieceColor.WHITE ? "Black" : "White"));
             } else {
                 gameState = GameState.STALEMATE;
+                System.out.println("[Chess Debug] STALEMATE detected!");
             }
         } else if (inCheck) {
             gameState = (currentTurn == PieceColor.WHITE) ? GameState.CHECK_WHITE : GameState.CHECK_BLACK;
+            System.out.println("[Chess Debug] CHECK detected for " + currentTurn);
         } else {
             gameState = (currentTurn == PieceColor.WHITE) ? GameState.WHITE_TURN : GameState.BLACK_TURN;
         }
@@ -648,6 +775,7 @@ public class ChessBoard {
     }
 
     public PieceColor getCurrentTurn() { return currentTurn; }
+    public void setCurrentTurn(PieceColor turn) { this.currentTurn = turn; }
     public GameState getGameState() { return gameState; }
     public List<ChessMove> getMoveHistory() { return Collections.unmodifiableList(moveHistory); }
     public int getHalfMoveClock() { return halfMoveClock; }
