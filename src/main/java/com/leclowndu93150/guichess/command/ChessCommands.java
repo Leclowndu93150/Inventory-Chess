@@ -268,13 +268,13 @@ public class ChessCommands {
             return 0;
         }
 
-        ChessChallenge challenge = gameManager.createChallenge(challenger, challenged, timeControl);
+        ChessChallenge challenge = gameManager.createChallengeWithRandomizedSides(challenger, challenged, timeControl);
         if (challenge == null) {
             context.getSource().sendFailure(Component.literal("§cFailed to create challenge (player might have become busy)!"));
             return 0;
         }
 
-        challenger.sendSystemMessage(Component.literal("§eChallenge sent to " + challenged.getName().getString() + " (" + timeControl.displayName + ")"));
+        challenger.sendSystemMessage(Component.literal("§eChallenge sent to " + challenged.getName().getString() + " (" + timeControl.displayName + ") with randomized sides!"));
 
         return 1;
     }

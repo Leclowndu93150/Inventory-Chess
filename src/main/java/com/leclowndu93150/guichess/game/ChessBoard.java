@@ -298,25 +298,21 @@ public class ChessBoard {
         
         // Check for pawn attacks
         if (isAttackedByPawn(kingPos, attackingColor)) {
-            System.out.println("[Chess Debug] " + color + " king at " + kingPos.toNotation() + " is in check by pawn!");
             return true;
         }
         
         // Check for knight attacks
         if (isAttackedByKnight(kingPos, attackingColor)) {
-            System.out.println("[Chess Debug] " + color + " king at " + kingPos.toNotation() + " is in check by knight!");
             return true;
         }
         
         // Check for sliding piece attacks (bishop, rook, queen)
         if (isAttackedBySlidingPiece(kingPos, attackingColor)) {
-            System.out.println("[Chess Debug] " + color + " king at " + kingPos.toNotation() + " is in check by sliding piece!");
             return true;
         }
         
         // Check for king attacks (adjacent squares)
         if (isAttackedByKing(kingPos, attackingColor)) {
-            System.out.println("[Chess Debug] " + color + " king at " + kingPos.toNotation() + " is in check by king!");
             return true;
         }
         
@@ -347,7 +343,6 @@ public class ChessBoard {
             if (piece != null && piece.getType() == PieceType.PAWN && 
                 ((attackingColor == PieceColor.WHITE && piece.isWhite()) || 
                  (attackingColor == PieceColor.BLACK && piece.isBlack()))) {
-                System.out.println("[Chess Debug] Pawn at " + attackFrom.toNotation() + " attacks " + pos.toNotation());
                 return true;
             }
         }
@@ -369,7 +364,6 @@ public class ChessBoard {
             if (piece != null && piece.getType() == PieceType.KNIGHT && 
                 ((attackingColor == PieceColor.WHITE && piece.isWhite()) || 
                  (attackingColor == PieceColor.BLACK && piece.isBlack()))) {
-                System.out.println("[Chess Debug] Knight at " + attackFrom.toNotation() + " attacks " + pos.toNotation());
                 return true;
             }
         }
@@ -398,7 +392,6 @@ public class ChessBoard {
                         if ((piece.getType() == PieceType.BISHOP && isDiagonal) ||
                             (piece.getType() == PieceType.ROOK && isStraight) ||
                             (piece.getType() == PieceType.QUEEN)) {
-                            System.out.println("[Chess Debug] " + piece.getType() + " at " + current.toNotation() + " attacks " + pos.toNotation());
                             return true;
                         }
                     }
@@ -423,7 +416,6 @@ public class ChessBoard {
                 if (piece != null && piece.getType() == PieceType.KING && 
                     ((attackingColor == PieceColor.WHITE && piece.isWhite()) || 
                      (attackingColor == PieceColor.BLACK && piece.isBlack()))) {
-                    System.out.println("[Chess Debug] King at " + attackFrom.toNotation() + " attacks " + pos.toNotation());
                     return true;
                 }
             }

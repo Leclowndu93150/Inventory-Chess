@@ -9,6 +9,7 @@ import com.leclowndu93150.guichess.chess.util.GameState;
 import com.leclowndu93150.guichess.chess.util.TimeControl;
 import com.leclowndu93150.guichess.data.PlayerData;
 import com.leclowndu93150.guichess.gui.ChessGUI;
+import com.leclowndu93150.guichess.util.ChessSoundManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
@@ -37,9 +38,12 @@ public class ChessGame {
 
     private boolean drawOffered = false;
     private ServerPlayer drawOfferer = null;
+    private boolean resignOffered = false;
+    private ServerPlayer resignOfferer = null;
 
     private boolean analysisMode = false;
     private Map<String, Object> analysisData = new HashMap<>();
+    private boolean timerStarted = false;
 
     public ChessGame(ServerPlayer whitePlayer, ServerPlayer blackPlayer, TimeControl timeControl) {
         this.gameId = UUID.randomUUID();
@@ -90,6 +94,11 @@ public class ChessGame {
 
             // Clear all selections after move
             clearAllSelections();
+            
+            // Start timer after white's first move
+            if (!timerStarted && board.getCurrentTurn() == PieceColor.BLACK) {
+                timerStarted = true;
+            }
 
             if (drawOffered && getOpponent(player).equals(drawOfferer)) {
                 // If a move is made, any pending draw offer to the current player is implicitly declined.
@@ -102,6 +111,7 @@ public class ChessGame {
             }
 
             checkGameEnd();
+            playMoveSound();
             updatePlayerGUIs();
 
             return true;
@@ -129,6 +139,7 @@ public class ChessGame {
         }
 
         if (timeControl.initialSeconds == -1) return; // No ticking for unlimited time
+        if (!timerStarted) return; // Don't tick until white makes first move
 
         if (board.getCurrentTurn() == PieceColor.WHITE) {
             if (whiteTimeLeft > 0) {
@@ -416,6 +427,17 @@ public class ChessGame {
         return true;
     }
 
+    public boolean offerResign(ServerPlayer player) {
+        if (!gameActive || resignOffered || analysisMode) return false;
+
+        resignOffered = true;
+        resignOfferer = player;
+
+        player.sendSystemMessage(Component.literal("§cYou are about to resign. Click again to confirm."));
+        updatePlayerGUIs();
+        return true;
+    }
+    
     public boolean resign(ServerPlayer player) {
         if (!gameActive || analysisMode) return false;
 
@@ -423,6 +445,36 @@ public class ChessGame {
                 GameState.WHITE_RESIGNED : GameState.BLACK_RESIGNED;
         endGame(resignState);
         return true;
+    }
+    
+    public boolean confirmResign(ServerPlayer player) {
+        if (!gameActive || !resignOffered || analysisMode || !player.equals(resignOfferer)) {
+            return false;
+        }
+        
+        resignOffered = false;
+        resignOfferer = null;
+        return resign(player);
+    }
+    
+    public boolean cancelResign(ServerPlayer player) {
+        if (!resignOffered || !player.equals(resignOfferer)) {
+            return false;
+        }
+        
+        resignOffered = false;
+        resignOfferer = null;
+        player.sendSystemMessage(Component.literal("§7Resign cancelled."));
+        updatePlayerGUIs();
+        return true;
+    }
+    
+    public boolean isResignOffered() {
+        return resignOffered;
+    }
+    
+    public ServerPlayer getResignOfferer() {
+        return resignOfferer;
     }
 
     public void enableAnalysisMode() {
@@ -498,6 +550,21 @@ public class ChessGame {
         // Update spectator GUIs too
         GameManager.getInstance().getActiveGames().get(gameId); // ensure game is fetched if needed
         GameManager.getInstance().updateSpectatorGUIs(this);
+    }
+    
+    private void playMoveSound() {
+        if (board.getMoveHistory().isEmpty()) return;
+        
+        ChessMove lastMove = board.getMoveHistory().get(board.getMoveHistory().size() - 1);
+        GameState currentState = board.getGameState();
+        
+        // Play move sound for both players
+        if (whitePlayer != null) {
+            ChessSoundManager.playMoveSound(whitePlayer, lastMove, currentState);
+        }
+        if (blackPlayer != null) {
+            ChessSoundManager.playMoveSound(blackPlayer, lastMove, currentState);
+        }
     }
 
     public boolean isPlayerTurn(ServerPlayer player) {
