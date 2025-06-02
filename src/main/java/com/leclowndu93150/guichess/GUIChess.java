@@ -47,11 +47,6 @@ public class GUIChess {
 
 
 //    Add Stockfish support
-//    Can request up to 3 hints per game (configurable in the challenge menu)
-//
-//    Will make a new gui, simple chest, allows you to chose if against a bot or a player, let's you chose the mode, time, amount of hints, if against a bot it's elo. If it's either random or chosen sides. Other settings
-//
-//    Elo will probably use materials like diamond etc, hints will use the light level light bulbs item, with 0, 1, 2 or 3.
 //
 //    Being able to bet items also through a GUI
 //
