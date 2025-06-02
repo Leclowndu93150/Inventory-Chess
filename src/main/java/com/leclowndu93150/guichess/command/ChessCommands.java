@@ -5,6 +5,7 @@ import com.leclowndu93150.guichess.data.PlayerData;
 import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.game.*;
 import com.leclowndu93150.guichess.gui.ChessGUI;
+import com.leclowndu93150.guichess.gui.ChallengeConfigGUI;
 import com.leclowndu93150.guichess.gui.PracticeBoardGUI;
 import com.leclowndu93150.guichess.gui.SpectatorGUI;
 import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
@@ -64,18 +65,7 @@ public class ChessCommands {
                                         .executes(ctx -> createGameWithDefaultTime(ctx))))
 
                         .then(Commands.literal("challenge")
-                                .then(Commands.argument("player", EntityArgument.player())
-                                        .then(Commands.argument("timecontrol", StringArgumentType.string())
-                                                .suggests(TIME_CONTROL_SUGGESTIONS)
-                                                .executes(ChessCommands::challengePlayer))
-                                        .executes(ctx -> challengePlayerWithDefaultTime(ctx))))
-                        
-                        .then(Commands.literal("challengerandom")
-                                .then(Commands.argument("player", EntityArgument.player())
-                                        .then(Commands.argument("timecontrol", StringArgumentType.string())
-                                                .suggests(TIME_CONTROL_SUGGESTIONS)
-                                                .executes(ChessCommands::challengePlayerRandomSides))
-                                        .executes(ctx -> challengePlayerRandomSidesWithDefaultTime(ctx))))
+                                .executes(ChessCommands::openChallengeGUI))
 
                         .then(Commands.literal("accept")
                                 .executes(ChessCommands::acceptChallenge))
@@ -221,119 +211,19 @@ public class ChessCommands {
         return 1;
     }
 
-    private static int challengePlayerWithDefaultTime(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+    private static int openChallengeGUI(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        ServerPlayer challenged = EntityArgument.getPlayer(context, "player");
-
-        // Use player's favorite time control or default to BLITZ_5_0
-        PlayerData playerData = GameManager.getInstance().getPlayerData(player);
-        String timeControlName = playerData.favoriteTimeControl != null ? playerData.favoriteTimeControl : "BLITZ_5_0";
-
-        return challengePlayerInternal(context, challenged, timeControlName);
-    }
-
-    private static int challengePlayer(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer challenged = EntityArgument.getPlayer(context, "player");
-        String timeControlName = StringArgumentType.getString(context, "timecontrol");
-
-        return challengePlayerInternal(context, challenged, timeControlName);
-    }
-
-    private static int challengePlayerInternal(CommandContext<CommandSourceStack> context, ServerPlayer challenged, String timeControlName) throws CommandSyntaxException {
-        ServerPlayer challenger = context.getSource().getPlayerOrException();
-
-        if (challenger.equals(challenged)) {
-            context.getSource().sendFailure(Component.literal("§cYou cannot challenge yourself!"));
-            return 0;
-        }
-
+        
         GameManager gameManager = GameManager.getInstance();
-
-        if (gameManager.isPlayerBusy(challenger)) {
+        if (gameManager.isPlayerBusy(player)) {
             context.getSource().sendFailure(Component.literal("§cYou are already in a game or have a pending challenge!"));
             return 0;
         }
-
-        if (gameManager.isPlayerBusy(challenged)) {
-            context.getSource().sendFailure(Component.literal("§c" + challenged.getName().getString() + " is already busy!"));
-            return 0;
-        }
-
-        TimeControl timeControl;
-        try {
-            timeControl = TimeControl.valueOf(timeControlName.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            context.getSource().sendFailure(Component.literal("§cInvalid time control: " + timeControlName + ". Valid: " +
-                    Arrays.stream(TimeControl.values()).map(tc -> tc.name().toLowerCase()).collect(Collectors.joining(", "))));
-            return 0;
-        }
-
-        ChessChallenge challenge = gameManager.createChallengeWithRandomizedSides(challenger, challenged, timeControl);
-        if (challenge == null) {
-            context.getSource().sendFailure(Component.literal("§cFailed to create challenge (player might have become busy)!"));
-            return 0;
-        }
-
-        challenger.sendSystemMessage(Component.literal("§eChallenge sent to " + challenged.getName().getString() + " (" + timeControl.displayName + ") with randomized sides!"));
-
-        return 1;
-    }
-    
-    private static int challengePlayerRandomSidesWithDefaultTime(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer player = context.getSource().getPlayerOrException();
-        ServerPlayer challenged = EntityArgument.getPlayer(context, "player");
-
-        // Use player's favorite time control or default to BLITZ_5_0
-        PlayerData playerData = GameManager.getInstance().getPlayerData(player);
-        String timeControlName = playerData.favoriteTimeControl != null ? playerData.favoriteTimeControl : "BLITZ_5_0";
-
-        return challengePlayerRandomSidesInternal(context, challenged, timeControlName);
-    }
-
-    private static int challengePlayerRandomSides(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        ServerPlayer challenged = EntityArgument.getPlayer(context, "player");
-        String timeControlName = StringArgumentType.getString(context, "timecontrol");
-
-        return challengePlayerRandomSidesInternal(context, challenged, timeControlName);
-    }
-
-    private static int challengePlayerRandomSidesInternal(CommandContext<CommandSourceStack> context, ServerPlayer challenged, String timeControlName) throws CommandSyntaxException {
-        ServerPlayer challenger = context.getSource().getPlayerOrException();
-
-        if (challenger.equals(challenged)) {
-            context.getSource().sendFailure(Component.literal("§cYou cannot challenge yourself!"));
-            return 0;
-        }
-
-        GameManager gameManager = GameManager.getInstance();
-
-        if (gameManager.isPlayerBusy(challenger)) {
-            context.getSource().sendFailure(Component.literal("§cYou are already in a game or have a pending challenge!"));
-            return 0;
-        }
-
-        if (gameManager.isPlayerBusy(challenged)) {
-            context.getSource().sendFailure(Component.literal("§c" + challenged.getName().getString() + " is already busy!"));
-            return 0;
-        }
-
-        TimeControl timeControl;
-        try {
-            timeControl = TimeControl.valueOf(timeControlName.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            context.getSource().sendFailure(Component.literal("§cInvalid time control: " + timeControlName + ". Valid: " +
-                    Arrays.stream(TimeControl.values()).map(tc -> tc.name().toLowerCase()).collect(Collectors.joining(", "))));
-            return 0;
-        }
-
-        ChessChallenge challenge = gameManager.createChallengeWithRandomizedSides(challenger, challenged, timeControl);
-        if (challenge == null) {
-            context.getSource().sendFailure(Component.literal("§cFailed to create challenge (player might have become busy)!"));
-            return 0;
-        }
-
-        challenger.sendSystemMessage(Component.literal("§eChallenge sent to " + challenged.getName().getString() + " (" + timeControl.displayName + ") with randomized sides!"));
-
+        
+        // Open the challenge configuration GUI
+        ChallengeConfigGUI challengeGUI = new ChallengeConfigGUI(player);
+        challengeGUI.open();
+        
         return 1;
     }
 

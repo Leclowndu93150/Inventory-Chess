@@ -44,13 +44,23 @@ public class ChessGame {
     private boolean analysisMode = false;
     private Map<String, Object> analysisData = new HashMap<>();
     private boolean timerStarted = false;
+    
+    // Hint system
+    private int hintsAllowed = 0;
+    private int whiteHintsUsed = 0;
+    private int blackHintsUsed = 0;
 
     public ChessGame(ServerPlayer whitePlayer, ServerPlayer blackPlayer, TimeControl timeControl) {
+        this(whitePlayer, blackPlayer, timeControl, 0);
+    }
+    
+    public ChessGame(ServerPlayer whitePlayer, ServerPlayer blackPlayer, TimeControl timeControl, int hintsAllowed) {
         this.gameId = UUID.randomUUID();
         this.whitePlayer = whitePlayer;
         this.blackPlayer = blackPlayer;
         this.timeControl = timeControl;
         this.startTime = System.currentTimeMillis();
+        this.hintsAllowed = hintsAllowed;
 
         this.board = new ChessBoard();
         if (timeControl.initialSeconds == -1) { // Unlimited time
@@ -475,6 +485,39 @@ public class ChessGame {
     
     public ServerPlayer getResignOfferer() {
         return resignOfferer;
+    }
+    
+    // Hint system methods
+    public int getHintsAllowed() {
+        return hintsAllowed;
+    }
+    
+    public int getHintsUsed(ServerPlayer player) {
+        PieceColor color = getPlayerColor(player);
+        return color == PieceColor.WHITE ? whiteHintsUsed : blackHintsUsed;
+    }
+    
+    public int getHintsRemaining(ServerPlayer player) {
+        return hintsAllowed - getHintsUsed(player);
+    }
+    
+    public boolean canUseHint(ServerPlayer player) {
+        return getHintsRemaining(player) > 0 && gameActive && !analysisMode;
+    }
+    
+    public boolean useHint(ServerPlayer player) {
+        if (!canUseHint(player)) {
+            return false;
+        }
+        
+        PieceColor color = getPlayerColor(player);
+        if (color == PieceColor.WHITE) {
+            whiteHintsUsed++;
+        } else if (color == PieceColor.BLACK) {
+            blackHintsUsed++;
+        }
+        
+        return true;
     }
 
     public void enableAnalysisMode() {

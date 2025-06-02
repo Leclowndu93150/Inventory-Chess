@@ -138,14 +138,15 @@ public class GameManager {
     }
 
     public ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl) {
-        return createGame(player1, player2, timeControl, false);
+        return createGame(player1, player2, timeControl, false, 0);
     }
 
     public ChessGame createGameWithRandomizedSides(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl) {
-        return createGame(player1, player2, timeControl, true);
+        return createGame(player1, player2, timeControl, true, 0);
     }
+    
 
-    private ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl, boolean randomizeSides) {
+    public ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl, boolean randomizeSides, int hintsAllowed) {
         ServerPlayer whitePlayer, blackPlayer;
 
         if (randomizeSides) {
@@ -164,7 +165,7 @@ public class GameManager {
             blackPlayer = player2;
         }
 
-        ChessGame game = new ChessGame(whitePlayer, blackPlayer, timeControl);
+        ChessGame game = new ChessGame(whitePlayer, blackPlayer, timeControl, hintsAllowed);
         activeGames.put(game.getGameId(), game);
 
         ChessGUI whiteGUI = new ChessGUI(whitePlayer, game, PieceColor.WHITE);
@@ -274,25 +275,30 @@ public class GameManager {
     }
 
     public ChessChallenge createChallenge(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl) {
-        return createChallenge(challenger, challenged, timeControl, false);
+        return createChallenge(challenger, challenged, timeControl, false, 0);
     }
 
     public ChessChallenge createChallengeWithRandomizedSides(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl) {
-        return createChallenge(challenger, challenged, timeControl, true);
+        return createChallenge(challenger, challenged, timeControl, true, 0);
+    }
+    
+    public ChessChallenge createChallengeWithConfiguration(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl, boolean randomizeSides, int hintsAllowed) {
+        return createChallenge(challenger, challenged, timeControl, randomizeSides, hintsAllowed);
     }
 
-    private ChessChallenge createChallenge(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl, boolean randomizeSides) {
+    private ChessChallenge createChallenge(ServerPlayer challenger, ServerPlayer challenged, TimeControl timeControl, boolean randomizeSides, int hintsAllowed) {
         if (isPlayerBusy(challenger) || isPlayerBusy(challenged)) {
             return null;
         }
 
-        ChessChallenge challenge = new ChessChallenge(challenger, challenged, timeControl, randomizeSides);
+        ChessChallenge challenge = new ChessChallenge(challenger, challenged, timeControl, randomizeSides, hintsAllowed);
         pendingChallenges.put(challenge.challengeId, challenge);
 
         String sideInfo = randomizeSides ? " (randomized sides)" : "";
+        String hintInfo = hintsAllowed > 0 ? " | " + hintsAllowed + " hints" : "";
         challenged.sendSystemMessage(Component.literal(
                 "§e" + challenger.getName().getString() + " challenges you to a " +
-                        timeControl.displayName + " game" + sideInfo + "! Use /chess accept or /chess decline"
+                        timeControl.displayName + " game" + sideInfo + hintInfo + "! Use /chess accept or /chess decline"
         ));
         return challenge;
     }
@@ -315,12 +321,8 @@ public class GameManager {
 
         pendingChallenges.remove(challengeId);
 
-        // Create game with randomized sides if specified in challenge
-        if (challenge.randomizeSides) {
-            createGameWithRandomizedSides(challenge.challenger, challenge.challenged, challenge.timeControl);
-        } else {
-            createGame(challenge.challenger, challenge.challenged, challenge.timeControl);
-        }
+        // Create game with configuration from challenge
+        createGame(challenge.challenger, challenge.challenged, challenge.timeControl, challenge.randomizeSides, challenge.hintsAllowed);
 
         challenge.challenger.sendSystemMessage(Component.literal(
                 "§a" + player.getName().getString() + " accepted your challenge!"
