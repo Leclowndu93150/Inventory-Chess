@@ -237,8 +237,12 @@ public class GameManager {
     private void clearPlayerInventoryFromChessPieces(ServerPlayer player) {
         if (player != null && !player.hasDisconnected()) {
             server.execute(() -> {
+                // Force a full inventory update to ensure client syncs properly
+                player.inventoryMenu.broadcastChanges();
                 player.inventoryMenu.sendAllDataToRemote();
-                //player.connection.send(player.inventoryMenu.getItems());
+                
+                // Send container update packet to force client refresh
+                player.containerMenu.broadcastChanges();
             });
         }
     }
