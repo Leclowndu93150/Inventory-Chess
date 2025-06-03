@@ -1,6 +1,7 @@
 package com.leclowndu93150.guichess;
 
 import com.leclowndu93150.guichess.command.ChessCommands;
+import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.events.PlayerEventHandler;
 import com.leclowndu93150.guichess.game.GameManager;
 import com.mojang.logging.LogUtils;
@@ -31,11 +32,21 @@ public class GUIChess {
         MinecraftServer server = event.getServer();
         GameManager.getInstance().initialize(server);
         LOGGER.info("GUIChess initialized with server");
+        
+        // Initialize Stockfish asynchronously
+        StockfishIntegration.getInstance().waitUntilReady().thenAccept(ready -> {
+            if (ready) {
+                LOGGER.info("Stockfish engine initialized successfully");
+            } else {
+                LOGGER.warn("Stockfish engine failed to initialize - hints and analysis will be unavailable");
+            }
+        });
     }
 
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
         GameManager.getInstance().shutdown();
+        StockfishIntegration.getInstance().shutdown();
         LOGGER.info("GUIChess shutdown complete");
     }
 

@@ -44,7 +44,21 @@ public class ChessGUI extends SimpleGui {
         this.game = game;
         this.playerColor = playerColor;
 
-        setTitle(Component.literal("§0Chess Game against " + (game != null ? game.getOpponent(player).getName().getString() : "Unknown")));
+        String opponentName = "Unknown";
+        if (game != null) {
+            ServerPlayer opponent = game.getOpponent(player);
+            if (opponent != null) {
+                opponentName = opponent.getName().getString();
+            } else {
+                // This is a bot game
+                if (game instanceof com.leclowndu93150.guichess.game.ChessBotGame botGame) {
+                    opponentName = botGame.getBotName();
+                } else {
+                    opponentName = "Bot";
+                }
+            }
+        }
+        setTitle(Component.literal("§0Chess Game against " + opponentName));
         setupInitialGUI();
     }
 
@@ -516,6 +530,26 @@ public class ChessGUI extends SimpleGui {
             player.sendSystemMessage(Component.literal("§cIt's not your turn to get a hint."));
             return;
         }
+        
+        // Check if player has hints remaining
+        if (game != null && game.getHintsAllowed() > 0) {
+            PieceColor playerColor = game.getPlayerColor(player);
+            int hintsUsed = playerColor == PieceColor.WHITE ? game.getWhiteHintsUsed() : game.getBlackHintsUsed();
+            
+            if (hintsUsed >= game.getHintsAllowed()) {
+                ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
+                player.sendSystemMessage(Component.literal("§cYou have no hints remaining!"));
+                return;
+            }
+            
+            // Increment hints used
+            if (playerColor == PieceColor.WHITE) {
+                game.incrementWhiteHints();
+            } else {
+                game.incrementBlackHints();
+            }
+        }
+        
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.HINT);
         StockfishIntegration.getInstance().requestHint(getBoard().toFEN(), hint -> {
             player.sendSystemMessage(Component.literal("§bHint: " + hint));

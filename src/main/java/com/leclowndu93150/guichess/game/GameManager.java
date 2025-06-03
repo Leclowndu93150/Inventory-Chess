@@ -14,6 +14,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.item.ItemStack;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -93,15 +94,22 @@ public class GameManager {
             for (ChessGame game : activeGames.values()) {
                 if (!game.isGameActive()) continue;
 
-                ChessGUI whiteGUI = playerGUIs.get(game.getWhitePlayer().getUUID());
-                ChessGUI blackGUI = playerGUIs.get(game.getBlackPlayer().getUUID());
-
-                if (whiteGUI != null && !whiteGUI.isOpen() && whiteGUI.getAutoReopen()) {
-                    whiteGUI.open();
+                // Handle white player (may be null in bot games)
+                ServerPlayer whitePlayer = game.getWhitePlayer();
+                if (whitePlayer != null) {
+                    ChessGUI whiteGUI = playerGUIs.get(whitePlayer.getUUID());
+                    if (whiteGUI != null && !whiteGUI.isOpen() && whiteGUI.getAutoReopen()) {
+                        whiteGUI.open();
+                    }
                 }
 
-                if (blackGUI != null && !blackGUI.isOpen() && blackGUI.getAutoReopen()) {
-                    blackGUI.open();
+                // Handle black player (may be null in bot games)
+                ServerPlayer blackPlayer = game.getBlackPlayer();
+                if (blackPlayer != null) {
+                    ChessGUI blackGUI = playerGUIs.get(blackPlayer.getUUID());
+                    if (blackGUI != null && !blackGUI.isOpen() && blackGUI.getAutoReopen()) {
+                        blackGUI.open();
+                    }
                 }
             }
         } catch (Exception e) {
@@ -146,6 +154,24 @@ public class GameManager {
     }
     
 
+    public ChessGame createBotGame(ServerPlayer player, PieceColor playerColor, TimeControl timeControl, int botElo, int hintsAllowed) {
+        if (isPlayerBusy(player)) {
+            player.sendSystemMessage(Component.literal("§cYou are already in a game!"));
+            return null;
+        }
+
+        ChessBotGame game = new ChessBotGame(player, playerColor, timeControl, botElo, hintsAllowed);
+        activeGames.put(game.getGameId(), game);
+
+        ChessGUI gui = new ChessGUI(player, game, playerColor);
+        playerGUIs.put(player.getUUID(), gui);
+        gui.open();
+
+        player.sendSystemMessage(Component.literal("§aStarting game against bot (ELO " + botElo + ")!"));
+
+        return game;
+    }
+    
     public ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl, boolean randomizeSides, int hintsAllowed) {
         ServerPlayer whitePlayer, blackPlayer;
 
@@ -291,7 +317,7 @@ public class GameManager {
             return null;
         }
 
-        ChessChallenge challenge = new ChessChallenge(challenger, challenged, timeControl, randomizeSides, hintsAllowed);
+        ChessChallenge challenge = new ChessChallenge(challenger, challenged, timeControl);
         pendingChallenges.put(challenge.challengeId, challenge);
 
         String sideInfo = randomizeSides ? " (randomized sides)" : "";
@@ -302,27 +328,72 @@ public class GameManager {
         ));
         return challenge;
     }
+    
+    public void createChallenge(ChessChallenge challenge) {
+        if (challenge == null || isPlayerBusy(challenge.challenger) || isPlayerBusy(challenge.challenged)) {
+            if (challenge != null) {
+                challenge.challenger.sendSystemMessage(Component.literal("§cFailed to create challenge - one or both players are busy."));
+            }
+            return;
+        }
 
-    public boolean acceptChallenge(ServerPlayer player, UUID challengeId) {
-        ChessChallenge challenge = pendingChallenges.get(challengeId);
+        pendingChallenges.put(challenge.challengeId, challenge);
+
+        String sideInfo = challenge.getChallengerPreferredSide() != null ? 
+                " (" + challenge.challenger.getName().getString() + " wants " + challenge.getChallengerPreferredSide() + ")" : 
+                " (random sides)";
+        String betInfo = challenge.hasBet() ? " | " + challenge.getChallengerBet().size() + " items bet" : "";
+        
+        challenge.challenged.sendSystemMessage(Component.literal(
+                "§e" + challenge.challenger.getName().getString() + " challenges you to a " +
+                        challenge.timeControl.displayName + " game" + sideInfo + betInfo +
+                        "! Use /chess accept or /chess decline"
+        ));
+        
+        challenge.challenger.sendSystemMessage(Component.literal("§aChallenge sent to " + challenge.challenged.getName().getString()));
+    }
+
+    public boolean acceptChallenge(ServerPlayer player, ChessChallenge challenge) {
         if (challenge == null || !challenge.challenged.equals(player) || challenge.isExpired()) {
-            if (challenge != null && challenge.isExpired()) pendingChallenges.remove(challengeId);
+            if (challenge != null && challenge.isExpired()) pendingChallenges.remove(challenge.challengeId);
             return false;
         }
 
-        if (isPlayerBusyExcluding(challenge.challenger, challengeId) || isPlayerBusyExcluding(challenge.challenged, challengeId)) {
+        if (isPlayerBusyExcluding(challenge.challenger, challenge.challengeId) || isPlayerBusyExcluding(challenge.challenged, challenge.challengeId)) {
             player.sendSystemMessage(Component.literal("§cOne of the players became busy. Cannot start game."));
             if (!challenge.challenger.equals(player)) {
                 challenge.challenger.sendSystemMessage(Component.literal("§cCould not start game with " + player.getName().getString() + " as one of you became busy."));
             }
-            pendingChallenges.remove(challengeId);
+            pendingChallenges.remove(challenge.challengeId);
             return false;
         }
 
-        pendingChallenges.remove(challengeId);
+        pendingChallenges.remove(challenge.challengeId);
 
-        // Create game with configuration from challenge
-        createGame(challenge.challenger, challenge.challenged, challenge.timeControl, challenge.randomizeSides, challenge.hintsAllowed);
+        // Items were already taken by the GUIs, so we don't need to take them again
+        // The challenge already contains the bet items from both players
+
+        // Determine sides
+        PieceColor challengerColor;
+        if (challenge.getChallengerPreferredSide() != null) {
+            challengerColor = challenge.getChallengerPreferredSide();
+        } else {
+            // Random sides
+            challengerColor = Math.random() < 0.5 ? PieceColor.WHITE : PieceColor.BLACK;
+        }
+
+        // Create game with proper sides
+        ChessGame game;
+        if (challengerColor == PieceColor.WHITE) {
+            game = createGame(challenge.challenger, challenge.challenged, challenge.timeControl, false, challenge.hintsAllowed);
+        } else {
+            game = createGame(challenge.challenged, challenge.challenger, challenge.timeControl, false, challenge.hintsAllowed);
+        }
+        
+        // Store bet items in the game
+        if (challenge.hasBet() && game != null) {
+            game.setBetItems(challenge.getAllBetItems());
+        }
 
         challenge.challenger.sendSystemMessage(Component.literal(
                 "§a" + player.getName().getString() + " accepted your challenge!"
@@ -341,15 +412,29 @@ public class GameManager {
                         (c.challenger.equals(player) || c.challenged.equals(player)));
     }
 
-    public boolean declineChallenge(ServerPlayer player, UUID challengeId) {
-        ChessChallenge challenge = pendingChallenges.remove(challengeId);
+    public boolean declineChallenge(ServerPlayer player, ChessChallenge challenge) {
         if (challenge == null || !challenge.challenged.equals(player)) {
             return false;
         }
+        
+        pendingChallenges.remove(challenge.challengeId);
 
-        challenge.challenger.sendSystemMessage(Component.literal(
-                "§c" + player.getName().getString() + " declined your challenge."
-        ));
+        // Return bet items to challenger
+        if (challenge.hasBet()) {
+            for (ItemStack item : challenge.getChallengerBet()) {
+                if (!challenge.challenger.getInventory().add(item)) {
+                    challenge.challenger.drop(item, false);
+                }
+            }
+            challenge.challenger.sendSystemMessage(Component.literal(
+                    "§c" + player.getName().getString() + " declined your challenge. Your bet items have been returned."
+            ));
+        } else {
+            challenge.challenger.sendSystemMessage(Component.literal(
+                    "§c" + player.getName().getString() + " declined your challenge."
+            ));
+        }
+        
         player.sendSystemMessage(Component.literal("§cChallenge declined."));
         return true;
     }
@@ -450,12 +535,26 @@ public class GameManager {
 
     private void cleanupExpiredChallenges() {
         pendingChallenges.entrySet().removeIf(entry -> {
-            if (entry.getValue().isExpired()) {
-                entry.getValue().challenger.sendSystemMessage(Component.literal(
-                        "§7Your challenge to " + entry.getValue().challenged.getName().getString() + " has expired."
-                ));
-                entry.getValue().challenged.sendSystemMessage(Component.literal(
-                        "§7The challenge from " + entry.getValue().challenger.getName().getString() + " has expired."
+            ChessChallenge challenge = entry.getValue();
+            if (challenge.isExpired()) {
+                // Return bet items to challenger if any
+                if (challenge.hasBet()) {
+                    for (ItemStack item : challenge.getChallengerBet()) {
+                        if (!challenge.challenger.getInventory().add(item)) {
+                            challenge.challenger.drop(item, false);
+                        }
+                    }
+                    challenge.challenger.sendSystemMessage(Component.literal(
+                            "§7Your challenge to " + challenge.challenged.getName().getString() + " has expired. Your bet items have been returned."
+                    ));
+                } else {
+                    challenge.challenger.sendSystemMessage(Component.literal(
+                            "§7Your challenge to " + challenge.challenged.getName().getString() + " has expired."
+                    ));
+                }
+                
+                challenge.challenged.sendSystemMessage(Component.literal(
+                        "§7The challenge from " + challenge.challenger.getName().getString() + " has expired."
                 ));
                 return true;
             }

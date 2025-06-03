@@ -4,6 +4,7 @@ package com.leclowndu93150.guichess.engine;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -24,6 +25,7 @@ public class StockfishIntegration {
     private int analysisDepth = 15;
     private int multiPv = 3;
     private int analysisTime = 1000; // milliseconds
+    private int skillLevel = 20; // -20 to 20, where 20 is full strength
     private String stockfishPath;
 
     // Pattern matching for UCI responses
@@ -32,7 +34,12 @@ public class StockfishIntegration {
     private static final Pattern MATE_PATTERN = Pattern.compile("info.*depth\\s+(\\d+).*score\\s+mate\\s+([+-]?\\d+).*pv\\s+(.+)");
 
     private StockfishIntegration() {
-        this.initializationFuture = CompletableFuture.runAsync(this::initializeStockfish, executor);
+        this.initializationFuture = CompletableFuture.runAsync(this::initializeStockfish, executor)
+                .exceptionally(throwable -> {
+                    System.err.println("[GUIChess] Failed to initialize Stockfish: " + throwable.getMessage());
+                    throwable.printStackTrace();
+                    return null;
+                });
     }
 
     public static StockfishIntegration getInstance() {
@@ -57,47 +64,50 @@ public class StockfishIntegration {
     }
 
     private void findStockfishExecutable() throws IOException {
-        // Try common Stockfish locations
-        String[] possiblePaths = {
-                "stockfish",           // If in PATH
-                "./stockfish",         // Current directory
-                "./engines/stockfish", // Engines subdirectory
-                "/usr/bin/stockfish",  // Linux system installation
-                "/opt/homebrew/bin/stockfish", // macOS Homebrew
-                "C:\\stockfish\\stockfish.exe", // Windows common location
-                System.getProperty("chess.stockfish.path", "") // System property override
-        };
-
-        for (String path : possiblePaths) {
-            if (path.isEmpty()) continue;
-
-            Path stockfishFile = Path.of(path);
-            if (Files.exists(stockfishFile) && Files.isExecutable(stockfishFile)) {
-                this.stockfishPath = path;
-                return;
-            }
+        // Check for system property override first
+        String overridePath = System.getProperty("chess.stockfish.path", "");
+        if (!overridePath.isEmpty() && Files.exists(Path.of(overridePath))) {
+            this.stockfishPath = overridePath;
+            System.out.println("[GUIChess] Using Stockfish from system property: " + stockfishPath);
+            return;
         }
-
-        // Try to find in system PATH
+        
+        // Use installer to download and set up Stockfish
+        Path dataDir = Paths.get("config", "guichess");
+        Files.createDirectories(dataDir);
+        
+        StockfishInstaller installer = new StockfishInstaller(dataDir);
+        
         try {
-            ProcessBuilder pb = new ProcessBuilder("which", "stockfish");
-            Process process = pb.start();
-            process.waitFor(5, TimeUnit.SECONDS);
-
-            if (process.exitValue() == 0) {
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String foundPath = reader.readLine();
-                    if (foundPath != null && !foundPath.trim().isEmpty()) {
-                        this.stockfishPath = foundPath.trim();
-                        return;
+            // Install if needed (blocking wait here is OK since we're already in async context)
+            installer.installIfNeededAsync().get(60, TimeUnit.SECONDS);
+            
+            // Get the executable path
+            Path executablePath = installer.getExecutablePath();
+            System.out.println("[GUIChess] Checking executable at: " + executablePath);
+            System.out.println("[GUIChess] File exists: " + Files.exists(executablePath));
+            System.out.println("[GUIChess] File is executable: " + Files.isExecutable(executablePath));
+            
+            if (Files.exists(executablePath)) {
+                if (Files.isExecutable(executablePath)) {
+                    this.stockfishPath = executablePath.toString();
+                    System.out.println("[GUIChess] Using Stockfish at: " + stockfishPath);
+                } else {
+                    // On Windows, executable check might fail but file can still be run
+                    String os = System.getProperty("os.name").toLowerCase();
+                    if (os.contains("win")) {
+                        this.stockfishPath = executablePath.toString();
+                        System.out.println("[GUIChess] Using Stockfish at (Windows): " + stockfishPath);
+                    } else {
+                        throw new IOException("Stockfish file exists but is not executable: " + executablePath);
                     }
                 }
+            } else {
+                throw new IOException("Stockfish executable not found at: " + executablePath);
             }
-        } catch (Exception e) {
-            // Fall through to error
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new IOException("Failed to install Stockfish", e);
         }
-
-        throw new IOException("Stockfish executable not found. Please install Stockfish and ensure it's in PATH or set chess.stockfish.path system property");
     }
 
     private void startStockfishProcess() throws IOException {
@@ -123,6 +133,7 @@ public class StockfishIntegration {
         sendCommand("setoption name Hash value 128"); // 128MB hash
         sendCommand("setoption name Threads value " + Math.min(4, Runtime.getRuntime().availableProcessors()));
         sendCommand("setoption name MultiPV value " + multiPv);
+        sendCommand("setoption name Skill Level value " + skillLevel);
 
         sendCommand("isready");
         waitForResponse("readyok", 5000);
@@ -160,13 +171,12 @@ public class StockfishIntegration {
         throw new IOException("Timeout waiting for response: " + expectedResponse);
     }
 
-    public void analyzePosition(String fen, Consumer<AnalysisResult> callback) {
+    public CompletableFuture<AnalysisResult> analyzePosition(String fen) {
         if (!isInitialized) {
-            initializationFuture.thenRun(() -> analyzePosition(fen, callback));
-            return;
+            return initializationFuture.thenCompose(v -> analyzePosition(fen));
         }
 
-        executor.submit(() -> {
+        return CompletableFuture.supplyAsync(() -> {
             try {
                 sendCommand("position fen " + fen);
                 sendCommand("go depth " + analysisDepth);
@@ -186,16 +196,24 @@ public class StockfishIntegration {
                     }
                 }
 
-                callback.accept(result);
+                return result;
             } catch (Exception e) {
                 e.printStackTrace();
-                callback.accept(new AnalysisResult("Error: " + e.getMessage()));
+                return new AnalysisResult("Error: " + e.getMessage());
             }
+        }, executor);
+    }
+    
+    // Legacy callback-based method for backward compatibility
+    public void analyzePosition(String fen, Consumer<AnalysisResult> callback) {
+        analyzePosition(fen).thenAccept(callback).exceptionally(throwable -> {
+            callback.accept(new AnalysisResult("Error: " + throwable.getMessage()));
+            return null;
         });
     }
 
-    public void requestHint(String fen, Consumer<String> callback) {
-        analyzePosition(fen, result -> {
+    public CompletableFuture<String> requestHint(String fen) {
+        return analyzePosition(fen).thenApply(result -> {
             String hint;
             if (result.bestMove != null) {
                 hint = "Best move: " + formatMove(result.bestMove);
@@ -205,12 +223,24 @@ public class StockfishIntegration {
             } else {
                 hint = "Unable to analyze position";
             }
-            callback.accept(hint);
+            return hint;
+        });
+    }
+    
+    // Legacy callback-based method
+    public void requestHint(String fen, Consumer<String> callback) {
+        requestHint(fen).thenAccept(callback).exceptionally(throwable -> {
+            callback.accept("Error: " + throwable.getMessage());
+            return null;
         });
     }
 
-    public void evaluatePosition(String fen, Consumer<EvaluationResult> callback) {
-        executor.submit(() -> {
+    public CompletableFuture<EvaluationResult> evaluatePosition(String fen) {
+        if (!isInitialized) {
+            return initializationFuture.thenCompose(v -> evaluatePosition(fen));
+        }
+        
+        return CompletableFuture.supplyAsync(() -> {
             try {
                 sendCommand("position fen " + fen);
                 sendCommand("go movetime " + analysisTime);
@@ -226,11 +256,19 @@ public class StockfishIntegration {
                     }
                 }
 
-                callback.accept(result);
+                return result;
             } catch (Exception e) {
                 e.printStackTrace();
-                callback.accept(new EvaluationResult("Error: " + e.getMessage()));
+                return new EvaluationResult("Error: " + e.getMessage());
             }
+        }, executor);
+    }
+    
+    // Legacy callback-based method
+    public void evaluatePosition(String fen, Consumer<EvaluationResult> callback) {
+        evaluatePosition(fen).thenAccept(callback).exceptionally(throwable -> {
+            callback.accept(new EvaluationResult("Error: " + throwable.getMessage()));
+            return null;
         });
     }
 
@@ -355,6 +393,10 @@ public class StockfishIntegration {
     public boolean isAvailable() {
         return isInitialized && isReady;
     }
+    
+    public CompletableFuture<Boolean> waitUntilReady() {
+        return initializationFuture.thenApply(v -> isAvailable());
+    }
 
     // Configuration methods
     public void setAnalysisDepth(int depth) {
@@ -367,6 +409,17 @@ public class StockfishIntegration {
 
     public void setAnalysisTime(int milliseconds) {
         this.analysisTime = Math.max(100, milliseconds);
+    }
+    
+    public void setSkillLevel(int level) {
+        this.skillLevel = Math.max(-20, Math.min(20, level));
+        if (isReady) {
+            try {
+                sendCommand("setoption name Skill Level value " + skillLevel);
+            } catch (IOException e) {
+                System.err.println("[GUIChess] Failed to set skill level: " + e.getMessage());
+            }
+        }
     }
 
     // Result classes

@@ -1,15 +1,19 @@
 package com.leclowndu93150.guichess.command;
 
+import com.leclowndu93150.guichess.chess.pieces.PieceColor;
 import com.leclowndu93150.guichess.chess.util.TimeControl;
 import com.leclowndu93150.guichess.data.PlayerData;
 import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.game.*;
 import com.leclowndu93150.guichess.gui.ChessGUI;
 import com.leclowndu93150.guichess.gui.ChallengeConfigGUI;
+import com.leclowndu93150.guichess.gui.ChallengeFlowGUI;
+import com.leclowndu93150.guichess.gui.ChallengeAcceptGUI;
 import com.leclowndu93150.guichess.gui.PracticeBoardGUI;
 import com.leclowndu93150.guichess.gui.SpectatorGUI;
 import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -66,6 +70,11 @@ public class ChessCommands {
 
                         .then(Commands.literal("challenge")
                                 .executes(ChessCommands::openChallengeGUI))
+                                
+                        .then(Commands.literal("bot")
+                                .then(Commands.argument("elo", IntegerArgumentType.integer(500, 3000))
+                                        .executes(ChessCommands::playBot))
+                                .executes(ctx -> playBotDefaultElo(ctx)))
 
                         .then(Commands.literal("accept")
                                 .executes(ChessCommands::acceptChallenge))
@@ -220,8 +229,8 @@ public class ChessCommands {
             return 0;
         }
         
-        // Open the challenge configuration GUI
-        ChallengeConfigGUI challengeGUI = new ChallengeConfigGUI(player);
+        // Open the new challenge flow GUI
+        ChallengeFlowGUI challengeGUI = new ChallengeFlowGUI(player);
         challengeGUI.open();
         
         return 1;
@@ -241,13 +250,11 @@ public class ChessCommands {
             return 0;
         }
 
-        if (gameManager.acceptChallenge(player, challengeToAccept.challengeId)) {
-            // Message is sent by GameManager.acceptChallenge now
-            return 1;
-        } else {
-            context.getSource().sendFailure(Component.literal("§cFailed to accept challenge. The challenger might be busy or the challenge expired."));
-            return 0;
-        }
+        // Open the challenge accept GUI for betting and review
+        ChallengeAcceptGUI acceptGUI = new ChallengeAcceptGUI(player, challengeToAccept);
+        acceptGUI.open();
+        
+        return 1;
     }
 
     private static int declineChallenge(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -264,7 +271,7 @@ public class ChessCommands {
             return 0;
         }
 
-        if (gameManager.declineChallenge(player, challengeToDecline.challengeId)) {
+        if (gameManager.declineChallenge(player, challengeToDecline)) {
             // Message is sent by GameManager.declineChallenge
             return 1;
         } else {
@@ -553,6 +560,45 @@ public class ChessCommands {
         } else {
             context.getSource().sendSuccess(() -> Component.literal("§7" + target.getName().getString() + " was not busy with chess activities."), false);
         }
+        return 1;
+    }
+    
+    private static int playBot(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        int elo = IntegerArgumentType.getInteger(context, "elo");
+        
+        GameManager gameManager = GameManager.getInstance();
+        if (gameManager.isPlayerBusy(player)) {
+            context.getSource().sendFailure(Component.literal("§cYou are already in a game or have a pending challenge!"));
+            return 0;
+        }
+        
+        // Random color
+        PieceColor playerColor = Math.random() < 0.5 ? PieceColor.WHITE : PieceColor.BLACK;
+        
+        gameManager.createBotGame(player, playerColor, TimeControl.RAPID_10_0, elo, 3); // 3 hints by default
+        
+        return 1;
+    }
+    
+    private static int playBotDefaultElo(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        
+        GameManager gameManager = GameManager.getInstance();
+        if (gameManager.isPlayerBusy(player)) {
+            context.getSource().sendFailure(Component.literal("§cYou are already in a game or have a pending challenge!"));
+            return 0;
+        }
+        
+        // Use player's ELO for bot difficulty
+        PlayerData playerData = gameManager.getPlayerData(player);
+        int botElo = Math.max(500, Math.min(3000, playerData.elo));
+        
+        // Random color
+        PieceColor playerColor = Math.random() < 0.5 ? PieceColor.WHITE : PieceColor.BLACK;
+        
+        gameManager.createBotGame(player, playerColor, TimeControl.RAPID_10_0, botElo, 3);
+        
         return 1;
     }
 }

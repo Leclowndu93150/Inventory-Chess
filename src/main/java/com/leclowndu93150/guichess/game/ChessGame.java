@@ -12,6 +12,7 @@ import com.leclowndu93150.guichess.gui.ChessGUI;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -20,12 +21,12 @@ import java.util.*;
 
 public class ChessGame {
     private final UUID gameId;
-    private final ServerPlayer whitePlayer;
-    private final ServerPlayer blackPlayer;
+    final ServerPlayer whitePlayer;
+    final ServerPlayer blackPlayer;
     private final TimeControl timeControl;
     private final long startTime;
 
-    private ChessBoard board;
+    ChessBoard board;
     private int whiteTimeLeft;
     private int blackTimeLeft;
     private boolean gameActive = true;
@@ -49,6 +50,9 @@ public class ChessGame {
     private int hintsAllowed = 0;
     private int whiteHintsUsed = 0;
     private int blackHintsUsed = 0;
+    
+    // Betting system
+    private List<ItemStack> betItems = new ArrayList<>();
 
     public ChessGame(ServerPlayer whitePlayer, ServerPlayer blackPlayer, TimeControl timeControl) {
         this(whitePlayer, blackPlayer, timeControl, 0);
@@ -185,11 +189,59 @@ public class ChessGame {
         gameActive = false;
 
         updateELORatings(finalState);
+        awardBetIfNeeded(finalState);
         saveGameHistory(finalState);
         notifyGameEnd(finalState);
         updatePlayerGUIs(); // Final GUI update to show game over state
 
         GameManager.getInstance().scheduleGameCleanup(this, 15);
+    }
+    
+    private void awardBetIfNeeded(GameState finalState) {
+        if (!hasBet()) return;
+        
+        ServerPlayer winner = null;
+        switch (finalState) {
+            case CHECKMATE_WHITE_WINS:
+            case BLACK_RESIGNED:
+            case BLACK_TIME_OUT:
+                winner = whitePlayer;
+                break;
+            case CHECKMATE_BLACK_WINS:
+            case WHITE_RESIGNED:
+            case WHITE_TIME_OUT:
+                winner = blackPlayer;
+                break;
+            default:
+                // Draw - return half to each player
+                List<ItemStack> allItems = getBetItems();
+                int halfPoint = allItems.size() / 2;
+                
+                // Give first half to white
+                for (int i = 0; i < halfPoint; i++) {
+                    ItemStack item = allItems.get(i);
+                    if (!whitePlayer.getInventory().add(item.copy())) {
+                        whitePlayer.drop(item.copy(), false);
+                    }
+                }
+                
+                // Give second half to black
+                for (int i = halfPoint; i < allItems.size(); i++) {
+                    ItemStack item = allItems.get(i);
+                    if (!blackPlayer.getInventory().add(item.copy())) {
+                        blackPlayer.drop(item.copy(), false);
+                    }
+                }
+                
+                whitePlayer.sendSystemMessage(Component.literal("§7Draw - bet items split between players."));
+                blackPlayer.sendSystemMessage(Component.literal("§7Draw - bet items split between players."));
+                betItems.clear();
+                return;
+        }
+        
+        if (winner != null) {
+            awardBetToWinner(winner);
+        }
     }
 
     private void updateELORatings(GameState finalState) {
@@ -583,7 +635,7 @@ public class ChessGame {
         if (blackPlayer != null) blackPlayer.sendSystemMessage(Component.literal(message));
     }
 
-    private void updatePlayerGUIs() {
+    void updatePlayerGUIs() {
         ChessGUI whiteGUI = GameManager.getInstance().getPlayerGUI(whitePlayer);
         ChessGUI blackGUI = GameManager.getInstance().getPlayerGUI(blackPlayer);
 
@@ -595,7 +647,7 @@ public class ChessGame {
         GameManager.getInstance().updateSpectatorGUIs(this);
     }
     
-    private void playMoveSound() {
+    void playMoveSound() {
         if (board.getMoveHistory().isEmpty()) return;
         
         ChessMove lastMove = board.getMoveHistory().get(board.getMoveHistory().size() - 1);
@@ -672,4 +724,38 @@ public class ChessGame {
     public ServerPlayer getDrawOfferer() { return drawOfferer; }
     public boolean isAnalysisMode() { return analysisMode; }
     public Map<String, Object> getAnalysisData() { return analysisData; }
+    
+    // Hint system getters/setters
+    public int getWhiteHintsUsed() { return whiteHintsUsed; }
+    public int getBlackHintsUsed() { return blackHintsUsed; }
+    
+    public void incrementWhiteHints() { whiteHintsUsed++; }
+    public void incrementBlackHints() { blackHintsUsed++; }
+    
+    // Betting methods
+    public void setBetItems(List<ItemStack> items) {
+        this.betItems = new ArrayList<>(items);
+    }
+    
+    public List<ItemStack> getBetItems() {
+        return new ArrayList<>(betItems);
+    }
+    
+    public boolean hasBet() {
+        return !betItems.isEmpty();
+    }
+    
+    public void awardBetToWinner(ServerPlayer winner) {
+        if (!hasBet() || winner == null) return;
+        
+        for (ItemStack item : betItems) {
+            if (!winner.getInventory().add(item.copy())) {
+                // Drop on ground if inventory full
+                winner.drop(item.copy(), false);
+            }
+        }
+        
+        winner.sendSystemMessage(Component.literal("§aYou won " + betItems.size() + " bet items!"));
+        betItems.clear();
+    }
 }

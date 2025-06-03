@@ -43,4 +43,26 @@ public class ChessMove {
 
         return move;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        
+        ChessMove other = (ChessMove) obj;
+        return from.equals(other.from) && 
+               to.equals(other.to) && 
+               java.util.Objects.equals(promotionPiece, other.promotionPiece);
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(from, to, promotionPiece);
+    }
+
+    @Override
+    public String toString() {
+        return "ChessMove{" + from.toNotation() + "->" + to.toNotation() + 
+               (promotionPiece != null ? "=" + promotionPiece : "") + "}";
+    }
 }
