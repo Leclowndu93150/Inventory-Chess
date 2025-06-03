@@ -3,7 +3,10 @@
     "allow": [
       "Bash(grep:*)",
       "Bash(javac:*)",
-      "Bash(java:*)"
+      "Bash(java:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg \"\\.displayName|\\.modelData\" com/leclowndu93150/guichess/gui/)"
     ],
     "deny": []
   }

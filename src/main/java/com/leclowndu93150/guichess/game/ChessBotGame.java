@@ -23,7 +23,6 @@ public class ChessBotGame extends ChessGame {
     private boolean isThinking = false;
     private CompletableFuture<Void> currentBotMove = null;
     
-    // UCI move pattern (e.g., "e2e4", "e7e8q" for promotion)
     private static final Pattern UCI_MOVE_PATTERN = Pattern.compile("([a-h][1-8])([a-h][1-8])([qrbn])?");
     
     public ChessBotGame(ServerPlayer humanPlayer, PieceColor humanColor, TimeControl timeControl, int botElo, int hintsAllowed) {
@@ -36,7 +35,6 @@ public class ChessBotGame extends ChessGame {
         this.botElo = botElo;
         this.botColor = humanColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
         
-        // If bot plays white, schedule first move
         if (botColor == PieceColor.WHITE) {
             GameManager.getInstance().getServer().execute(() -> {
                 if (isGameActive() && board.getMoveHistory().isEmpty()) {
@@ -51,7 +49,6 @@ public class ChessBotGame extends ChessGame {
         boolean result = super.makeMove(player, from, to, promotion);
         
         if (result && board.getCurrentTurn() == botColor && isGameActive()) {
-            // Schedule bot move after human move
             makeBotMove();
         }
         
@@ -65,24 +62,20 @@ public class ChessBotGame extends ChessGame {
         isThinking = true;
         ServerPlayer humanPlayer = getHumanPlayer();
         
-        // Show thinking message
         humanPlayer.sendSystemMessage(Component.literal("§7Bot is thinking..."));
         
-        // Cancel any existing bot move
         if (currentBotMove != null && !currentBotMove.isDone()) {
             currentBotMove.cancel(true);
         }
         
-        // Get current position
         String fen = board.toFEN();
         
-        // Configure Stockfish for the bot's ELO
         configureStockfishForElo(botElo);
         
         currentBotMove = CompletableFuture
             .runAsync(() -> {
                 try {
-                    Thread.sleep(500 + (int)(Math.random() * 1500)); // Add realistic delay
+                    Thread.sleep(500 + (int)(Math.random() * 1500));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;
@@ -96,30 +89,23 @@ public class ChessBotGame extends ChessGame {
                         }
                         
                         if (result.bestMove != null) {
-                            // Parse and make the move
                             ChessMove move = parseUCIMove(result.bestMove);
                             
                             if (move != null) {
-                                // Make the move on the main thread
                                 GameManager.getInstance().getServer().execute(() -> {
                                     if (isValidBotMove(move)) {
                                         if (board.makeMove(move)) {
-                                            // Update timers after move (like parent class does)
                                             updateTimersAfterMove();
                                             
-                                            // Start timer after first move (like parent class does)
                                             if (!timerStarted && board.getCurrentTurn() == PieceColor.BLACK) {
                                                 timerStarted = true;
                                             }
-                                            
-                                            // Play move sounds for the human player
                                             ServerPlayer human = getHumanPlayer();
                                             if (human != null) {
                                                 com.leclowndu93150.guichess.util.ChessSoundManager.playMoveSound(
                                                     human, move, board.getGameState());
                                             }
                                             
-                                            // Update GUI and check for game end
                                             ServerPlayer whitePlayer = getWhitePlayer();
                                             ServerPlayer blackPlayer = getBlackPlayer();
                                             
@@ -129,7 +115,6 @@ public class ChessBotGame extends ChessGame {
                                             if (whiteGUI != null && whiteGUI.isOpen()) whiteGUI.updateBoard();
                                             if (blackGUI != null && blackGUI.isOpen()) blackGUI.updateBoard();
                                             
-                                            // Check if the move ended the game
                                             GameState currentState = board.getGameState();
                                             if (currentState != GameState.WHITE_TURN && currentState != GameState.BLACK_TURN &&
                                                 currentState != GameState.CHECK_WHITE && currentState != GameState.CHECK_BLACK) {
@@ -163,47 +148,38 @@ public class ChessBotGame extends ChessGame {
     private void configureStockfishForElo(int targetElo) {
         StockfishIntegration stockfish = StockfishIntegration.getInstance();
         
-        // Map ELO to Stockfish Skill Level and depth based on Lichess mapping
         int depth;
         int analysisTime;
         
         if (targetElo < 400) {
-            // Level 1: < 400 ELO
             stockfish.setSkillLevel(-9);
             depth = 5;
             analysisTime = 1000;
         } else if (targetElo < 650) {
-            // Level 2: ~500 ELO
             stockfish.setSkillLevel(-5);
             depth = 5;
             analysisTime = 1000;
         } else if (targetElo < 950) {
-            // Level 3: ~800 ELO
             stockfish.setSkillLevel(-1);
             depth = 5;
             analysisTime = 1000;
         } else if (targetElo < 1300) {
-            // Level 4: ~1100 ELO
             stockfish.setSkillLevel(3);
             depth = 5;
             analysisTime = 1000;
         } else if (targetElo < 1700) {
-            // Level 5: ~1500 ELO
             stockfish.setSkillLevel(7);
             depth = 5;
             analysisTime = 1000;
         } else if (targetElo < 2100) {
-            // Level 6: ~1900 ELO
             stockfish.setSkillLevel(11);
             depth = 8;
             analysisTime = 1500;
         } else if (targetElo < 2550) {
-            // Level 7: ~2300 ELO
             stockfish.setSkillLevel(15);
             depth = 13;
             analysisTime = 2000;
         } else {
-            // Level 8: 2800+ ELO - Full strength
             stockfish.setSkillLevel(20);
             depth = 22;
             analysisTime = 3000;
@@ -230,7 +206,6 @@ public class ChessBotGame extends ChessGame {
             return null;
         }
         
-        // Find the matching legal move
         for (ChessMove move : board.getLegalMoves()) {
             if (move.from.equals(from) && move.to.equals(to)) {
                 if (promotion != null) {
@@ -271,7 +246,6 @@ public class ChessBotGame extends ChessGame {
     }
     
     private boolean isValidBotMove(ChessMove move) {
-        // Additional validation to ensure bot is making legal moves
         return board.getLegalMoves().contains(move) &&
                board.getPiece(move.from) != null &&
                board.getPiece(move.from).isWhite() == (botColor == PieceColor.WHITE);
@@ -283,7 +257,6 @@ public class ChessBotGame extends ChessGame {
     
     @Override
     public void endGame(GameState finalState) {
-        // Cancel any pending bot moves
         if (currentBotMove != null && !currentBotMove.isDone()) {
             currentBotMove.cancel(true);
         }

@@ -119,10 +119,8 @@ public class ChessGUI extends SimpleGui {
             clearSlot(i);
         }
 
-        // Determine pieces that can be captured this turn
         Set<ChessPosition> capturablePositions = getCapturablePositions(board, validMoves, selected);
 
-        // Get last move positions for highlighting
         ChessPosition lastMoveFrom = null;
         ChessPosition lastMoveTo = null;
         if (!moveHistory.isEmpty()) {
@@ -137,11 +135,9 @@ public class ChessGUI extends SimpleGui {
 
             int chessRank, chessFile;
             if (getBoardPerspective() == PieceColor.WHITE) {
-                // White perspective: rank 0 (White pieces) at bottom (row 7)
-                chessRank = 7 - row;
+                    chessRank = 7 - row;
                 chessFile = col;
             } else {
-                // Black perspective: rank 7 (White pieces) at top (row 0)
                 chessRank = row;
                 chessFile = 7 - col;
             }
@@ -187,15 +183,13 @@ public class ChessGUI extends SimpleGui {
     }
 
     protected void handleSquareClick(ChessPosition position) {
-        if (game == null) return; // Practice mode overrides this
+        if (game == null) return;
 
-        // Default implementation for real chess games
         ChessBoard board = getBoard();
         Set<ChessPosition> validMoves = getValidMoves();
         ChessPosition previousSelection = getSelectedSquare();
         ChessPiece pieceAtPos = board.getPiece(position);
 
-        // Priority 1: If we have a selection and this is a valid move, make the move
         if (previousSelection != null && validMoves.contains(position)) {
             boolean actionResult = game.selectSquare(player, position);
 
@@ -204,20 +198,18 @@ public class ChessGUI extends SimpleGui {
                 return;
             }
 
-            // Check if move was successful (selection should be cleared after a move)
             if (getSelectedSquare() == null) {
                 List<ChessMove> moveHistory = getMoveHistory();
                 if (!moveHistory.isEmpty()) {
                     ChessMove lastMove = moveHistory.get(moveHistory.size() - 1);
                     if (lastMove.isCapture && pieceAtPos != null) {
-                        player.sendSystemMessage(Component.literal("§aCaptured " + pieceAtPos.displayName.getString() + "!"));
+                        player.sendSystemMessage(Component.literal("§aCaptured " + pieceAtPos.getDisplayName().getString() + "!"));
                     }
                 }
             }
             return;
         }
 
-        // Priority 2: Try to select piece or deselect
         boolean actionResult = game.selectSquare(player, position);
 
         if (!actionResult) {
@@ -225,7 +217,6 @@ public class ChessGUI extends SimpleGui {
             return;
         }
 
-        // Determine what happened
         ChessPosition newSelection = getSelectedSquare();
 
         if (pieceAtPos != null && newSelection != null && newSelection.equals(position)) {
@@ -257,7 +248,6 @@ public class ChessGUI extends SimpleGui {
         boolean isLastMoved = position.equals(lastMoveFrom) || position.equals(lastMoveTo);
         boolean isInCheck = false;
 
-        // Check if this king is in check
         if (piece.getType() == PieceType.KING) {
             PieceColor kingColor = piece.isWhite() ? PieceColor.WHITE : PieceColor.BLACK;
             isInCheck = board.isInCheck(kingColor);
@@ -268,10 +258,9 @@ public class ChessGUI extends SimpleGui {
                 isLastMoved, isInCheck);
 
         Component displayName = Component.empty()
-                .append(piece.displayName)
+                .append(piece.getDisplayName())
                 .append(Component.literal(" - " + position.toNotation()));
 
-        // Add state indicators to the display name
         if (isInCheck) {
             displayName = Component.empty().append(displayName).append(Component.literal(" §c[CHECK]"));
         } else if (isSelected) {
@@ -290,18 +279,16 @@ public class ChessGUI extends SimpleGui {
     protected GuiElementBuilder createEmptySquareElement(ChessPosition position, Set<ChessPosition> validMoves) {
         boolean isLight = (position.file + position.rank) % 2 == 0;
 
-        // Use valid move squares for empty squares that are valid moves
         if (validMoves != null && validMoves.contains(position)) {
             BoardSquare squareType = isLight ? BoardSquare.VALID_LIGHT_SQUARE : BoardSquare.VALID_DARK_SQUARE;
             return new GuiElementBuilder(Items.GRAY_DYE)
-                    .setCustomModelData(squareType.modelData)
+                    .setCustomModelData(squareType.getModelData())
                     .setName(Component.literal("§a" + position.toNotation() + " - Valid Move"))
                     .hideDefaultTooltip();
         } else {
-            // Normal empty square
             BoardSquare squareType = isLight ? BoardSquare.LIGHT_SQUARE : BoardSquare.DARK_SQUARE;
             return new GuiElementBuilder(Items.GRAY_DYE)
-                    .setCustomModelData(squareType.modelData)
+                    .setCustomModelData(squareType.getModelData())
                     .setName(Component.literal(position.toNotation()))
                     .hideDefaultTooltip();
         }
@@ -311,7 +298,6 @@ public class ChessGUI extends SimpleGui {
         updateTimerDisplays();
         updateTurnIndicator();
 
-        // Place resign button back to original position
         updateResignButtons();
 
         updateDrawButtons();
@@ -324,14 +310,12 @@ public class ChessGUI extends SimpleGui {
         }
 
         if (game.isResignOffered() && game.getResignOfferer() != null && game.getResignOfferer().equals(player)) {
-            // Player offered to resign - show confirm button
             setSlot(62, new GuiElementBuilder(Items.GRAY_DYE)
-                    .setCustomModelData(GameUtility.RESIGN_BUTTON.modelData)
+                    .setCustomModelData(GameUtility.RESIGN_BUTTON.getModelData())
                     .setName(Component.literal("§c§lCONFIRM RESIGN"))
                     .addLoreLine(Component.literal("§7Click again to confirm resignation"))
                     .setCallback((index, type, action, gui) -> handleResign()));
         } else {
-            // Normal resign button
             setSlot(62, createUtilityButton(GameUtility.RESIGN_BUTTON, this::handleResign));
         }
     }
@@ -344,7 +328,7 @@ public class ChessGUI extends SimpleGui {
     }
 
     protected void updateTimerDisplays() {
-        if (game == null) return; // Practice mode doesn't have a game
+        if (game == null) return;
 
         GuiElementBuilder whiteTimer = new GuiElementBuilder(Items.CLOCK)
                 .setName(Component.literal("§fWhite: " + game.formatTime(game.getWhiteTimeLeft())));
@@ -353,16 +337,16 @@ public class ChessGUI extends SimpleGui {
                 .setName(Component.literal("§8Black: " + game.formatTime(game.getBlackTimeLeft())));
 
         if (playerColor == PieceColor.WHITE) {
-            setSlot(53, whiteTimer); // Back to original positions
+            setSlot(53, whiteTimer);
             setSlot(26, blackTimer);
         } else {
-            setSlot(53, blackTimer); // Back to original positions
+            setSlot(53, blackTimer);
             setSlot(26, whiteTimer);
         }
     }
 
     protected void updateTurnIndicator() {
-        if (game == null) return; // Handled by practice mode
+        if (game == null) return;
 
         PieceColor currentTurn = getBoard().getCurrentTurn();
         GameState gameState = getBoard().getGameState();
@@ -380,12 +364,11 @@ public class ChessGUI extends SimpleGui {
             turnIndicator = new GuiElementBuilder(Items.BLACK_STAINED_GLASS)
                     .setName(Component.literal("§8Black's Move"));
         }
-        setSlot(44, turnIndicator); // Back to original positions
+        setSlot(44, turnIndicator);
         setSlot(35, turnIndicator);
     }
 
     protected void setupAnalysisTools() {
-        // Removed - no more analyze, hint, or ELO buttons
     }
 
     protected void updateDrawButtons() {
@@ -408,8 +391,8 @@ public class ChessGUI extends SimpleGui {
 
     protected GuiElementBuilder createUtilityButton(GameUtility utility, Runnable action) {
         return new GuiElementBuilder(Items.GRAY_DYE)
-                .setCustomModelData(utility.modelData)
-                .setName(utility.displayName)
+                .setCustomModelData(utility.getModelData())
+                .setName(utility.getDisplayName())
                 .setCallback((index, type, actionType, gui) -> {
                     if ((game != null && game.isGameActive()) || utility == GameUtility.EXIT_BUTTON) {
                         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
@@ -444,7 +427,6 @@ public class ChessGUI extends SimpleGui {
 
     private GuiElementBuilder createPromotionOption(PieceType pieceType) {
         if (game == null) {
-            // Fallback for practice mode - this shouldn't be called
             return new GuiElementBuilder(Items.BARRIER).setName(Component.literal("§cError"));
         }
 
@@ -458,8 +440,8 @@ public class ChessGUI extends SimpleGui {
         };
 
         return new GuiElementBuilder(Items.GRAY_DYE)
-                .setCustomModelData(piece.modelData)
-                .setName(utility.displayName)
+                .setCustomModelData(piece.getModelData())
+                .setName(utility.getDisplayName())
                 .setCallback((index, type, action, gui) -> {
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SUCCESS);
                     game.makeMove(player, promotionFrom, promotionTo, pieceType);
@@ -473,11 +455,9 @@ public class ChessGUI extends SimpleGui {
         if (game == null) return;
         
         if (game.isResignOffered() && game.getResignOfferer() != null && game.getResignOfferer().equals(player)) {
-            // Player already offered to resign, this is the confirmation
             ChessSoundManager.playUISound(player, ChessSoundManager.UISound.RESIGN);
             game.confirmResign(player);
         } else {
-            // First click - offer to resign
             ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
             game.offerResign(player);
         }
@@ -531,7 +511,6 @@ public class ChessGUI extends SimpleGui {
             return;
         }
         
-        // Check if player has hints remaining
         if (game != null && game.getHintsAllowed() > 0) {
             PieceColor playerColor = game.getPlayerColor(player);
             int hintsUsed = playerColor == PieceColor.WHITE ? game.getWhiteHintsUsed() : game.getBlackHintsUsed();
@@ -542,7 +521,6 @@ public class ChessGUI extends SimpleGui {
                 return;
             }
             
-            // Increment hints used
             if (playerColor == PieceColor.WHITE) {
                 game.incrementWhiteHints();
             } else {
@@ -556,7 +534,6 @@ public class ChessGUI extends SimpleGui {
         });
     }
 
-    // Methods that subclasses can override - updated to use per-player selection
     protected ChessBoard getBoard() {
         return game != null ? game.getBoard() : new ChessBoard();
     }
@@ -566,7 +543,6 @@ public class ChessGUI extends SimpleGui {
             try {
                 return game.getValidMoves(player);
             } catch (Exception e) {
-                // Fallback for spectators or other edge cases
                 return new HashSet<>();
             }
         }
@@ -578,7 +554,6 @@ public class ChessGUI extends SimpleGui {
             try {
                 return game.getSelectedSquare(player);
             } catch (Exception e) {
-                // Fallback for spectators or other edge cases
                 return null;
             }
         }
@@ -594,8 +569,8 @@ public class ChessGUI extends SimpleGui {
     }
 
     private void debugModelData(ChessPiece piece, ChessPosition position, int modelData) {
-        if (player.getName().getString().equals("Dev")) { // Replace with your MC username for debug
-            String overlayKey = piece.modelName;
+        if (player.getName().getString().equals("Dev")) {
+            String overlayKey = piece.getModelName();
             boolean isLightSquare = (position.file + position.rank) % 2 == 0;
 
             if (position.equals(getSelectedSquare())) {
@@ -613,11 +588,10 @@ public class ChessGUI extends SimpleGui {
                 ));
             }
 
-            // Also log all available overlays for this piece
-            if (Math.random() < 0.01) { // 1% chance to avoid spam
-                player.sendSystemMessage(Component.literal("§7Available overlays for " + piece.modelName + ":"));
+            if (Math.random() < 0.01) {
+                player.sendSystemMessage(Component.literal("§7Available overlays for " + piece.getModelName() + ":"));
                 OverlayModelDataRegistry.getAllModelData().entrySet().stream()
-                        .filter(e -> e.getKey().startsWith(piece.modelName))
+                        .filter(e -> e.getKey().startsWith(piece.getModelName()))
                         .forEach(e -> player.sendSystemMessage(Component.literal(
                                 "§7  " + e.getKey() + " -> " + e.getValue()
                         )));

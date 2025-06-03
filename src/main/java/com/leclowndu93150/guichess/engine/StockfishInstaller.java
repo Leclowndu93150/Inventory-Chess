@@ -71,17 +71,14 @@ public class StockfishInstaller {
                 Path tempFile = installDir.resolve(isZip ? "stockfish.zip" : "stockfish.tar");
                 
                 try {
-                    // Download
                     downloadFile(downloadUrl, tempFile);
                     
-                    // Extract
                     if (isZip) {
                         extractZip(tempFile);
                     } else {
                         extractTar(tempFile);
                     }
                     
-                    // Make executable on Unix-like systems
                     if (!os.contains("win")) {
                         makeExecutable();
                     }
@@ -89,7 +86,6 @@ public class StockfishInstaller {
                     System.out.println("[GUIChess] Stockfish installed successfully at: " + stockfishExecutable);
                     
                 } finally {
-                    // Clean up temp file
                     Files.deleteIfExists(tempFile);
                 }
             } catch (IOException e) {
@@ -108,7 +104,6 @@ public class StockfishInstaller {
         connection.setReadTimeout(30000);
         connection.setInstanceFollowRedirects(true);
         
-        // GitHub redirects to CDN, so we need to follow redirects
         int status = connection.getResponseCode();
         if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
             String newUrl = connection.getHeaderField("Location");
@@ -152,7 +147,6 @@ public class StockfishInstaller {
                 String name = entry.getName();
                 System.out.println("[GUIChess] ZIP entry: " + name);
                 
-                // Look for the Windows executable: stockfish/stockfish-windows-x86-64-avx2.exe
                 if (!entry.isDirectory() && 
                     (name.equals("stockfish/stockfish-windows-x86-64-avx2.exe") || 
                      name.endsWith("stockfish-windows-x86-64-avx2.exe") ||
@@ -171,7 +165,6 @@ public class StockfishInstaller {
         
         if (!found) {
             System.err.println("[GUIChess] No stockfish executable found in ZIP archive");
-            // List all entries for debugging
             try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFile))) {
                 ZipEntry entry;
                 System.out.println("[GUIChess] All ZIP entries:");
@@ -196,7 +189,6 @@ public class StockfishInstaller {
                 String name = entry.getName();
                 System.out.println("[GUIChess] TAR entry: " + name);
                 
-                // Look for stockfish executables (Ubuntu/Mac variants)
                 if (!entry.isDirectory() && 
                     (name.contains("stockfish-ubuntu") || name.contains("stockfish-macos") || 
                      (name.contains("stockfish") && name.endsWith("stockfish")))) {
@@ -214,7 +206,6 @@ public class StockfishInstaller {
         
         if (!found) {
             System.err.println("[GUIChess] No stockfish executable found in TAR archive");
-            // List all entries for debugging
             try (InputStream fileIn = Files.newInputStream(tarFile);
                  BufferedInputStream buffIn = new BufferedInputStream(fileIn);
                  TarArchiveInputStream tarIn = new TarArchiveInputStream(buffIn)) {
@@ -231,7 +222,6 @@ public class StockfishInstaller {
     
     private void makeExecutable() throws IOException {
         try {
-            // Use ProcessBuilder to run chmod
             ProcessBuilder pb = new ProcessBuilder("chmod", "+x", stockfishExecutable.toString());
             Process process = pb.start();
             int exitCode = process.waitFor();
@@ -243,7 +233,6 @@ public class StockfishInstaller {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while making file executable", e);
         } catch (IOException e) {
-            // Fallback to Java NIO
             System.out.println("[GUIChess] chmod failed, trying Java NIO method");
             
             try {

@@ -19,10 +19,10 @@ public enum ChessPiece {
     BLACK_KNIGHT(1014, "black_knight", "♞", Component.literal("§8Black Knight")),
     BLACK_PAWN(1015, "black_pawn", "♟", Component.literal("§8Black Pawn"));
 
-    public final int modelData;
-    public final String modelName;
-    public final String symbol;
-    public final Component displayName;
+    private final int modelData;
+    private final String modelName;
+    private final String symbol;
+    private final Component displayName;
 
     ChessPiece(int modelData, String modelName, String symbol, Component displayName) {
         this.modelData = modelData;
@@ -46,5 +46,21 @@ public enum ChessPiece {
     public static ChessPiece fromColorAndType(PieceColor color, PieceType type) {
         int offset = color == PieceColor.WHITE ? 0 : 6;
         return values()[offset + type.ordinal()];
+    }
+
+    public int getModelData() {
+        return modelData;
+    }
+
+    public String getModelName() {
+        return modelName;
+    }
+
+    public String getSymbol() {
+        return symbol;
+    }
+
+    public Component getDisplayName() {
+        return displayName;
     }
 }

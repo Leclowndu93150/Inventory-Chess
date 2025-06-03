@@ -21,7 +21,6 @@ public class DataGenerators {
         ExistingFileHelper existingFileHelper = new DummyExistingFileHelper();
         CompletableFuture<HolderLookup.Provider> lookupProvider = event.getLookupProvider();
 
-        // Add item model provider
         generator.addProvider(
                 event.includeClient(),
                 new ChessItemModelProvider(packOutput, GUIChess.MODID, existingFileHelper)

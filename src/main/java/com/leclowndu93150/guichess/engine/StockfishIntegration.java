@@ -21,14 +21,12 @@ public class StockfishIntegration {
     private boolean isReady = false;
     private boolean isInitialized = false;
 
-    // Configuration
     private int analysisDepth = 15;
     private int multiPv = 3;
-    private int analysisTime = 1000; // milliseconds
-    private int skillLevel = 20; // -20 to 20, where 20 is full strength
+    private int analysisTime = 1000;
+    private int skillLevel = 20;
     private String stockfishPath;
 
-    // Pattern matching for UCI responses
     private static final Pattern BEST_MOVE_PATTERN = Pattern.compile("bestmove\\s+(\\w+)");
     private static final Pattern INFO_PATTERN = Pattern.compile("info.*depth\\s+(\\d+).*score\\s+cp\\s+([+-]?\\d+).*pv\\s+(.+)");
     private static final Pattern MATE_PATTERN = Pattern.compile("info.*depth\\s+(\\d+).*score\\s+mate\\s+([+-]?\\d+).*pv\\s+(.+)");
@@ -64,7 +62,6 @@ public class StockfishIntegration {
     }
 
     private void findStockfishExecutable() throws IOException {
-        // Check for system property override first
         String overridePath = System.getProperty("chess.stockfish.path", "");
         if (!overridePath.isEmpty() && Files.exists(Path.of(overridePath))) {
             this.stockfishPath = overridePath;
@@ -72,17 +69,14 @@ public class StockfishIntegration {
             return;
         }
         
-        // Use installer to download and set up Stockfish
         Path dataDir = Paths.get("config", "guichess");
         Files.createDirectories(dataDir);
         
         StockfishInstaller installer = new StockfishInstaller(dataDir);
         
         try {
-            // Install if needed (blocking wait here is OK since we're already in async context)
             installer.installIfNeededAsync().get(60, TimeUnit.SECONDS);
             
-            // Get the executable path
             Path executablePath = installer.getExecutablePath();
             System.out.println("[GUIChess] Checking executable at: " + executablePath);
             System.out.println("[GUIChess] File exists: " + Files.exists(executablePath));
@@ -93,7 +87,6 @@ public class StockfishIntegration {
                     this.stockfishPath = executablePath.toString();
                     System.out.println("[GUIChess] Using Stockfish at: " + stockfishPath);
                 } else {
-                    // On Windows, executable check might fail but file can still be run
                     String os = System.getProperty("os.name").toLowerCase();
                     if (os.contains("win")) {
                         this.stockfishPath = executablePath.toString();
@@ -118,7 +111,6 @@ public class StockfishIntegration {
         stockfishInput = new BufferedWriter(new OutputStreamWriter(stockfishProcess.getOutputStream()));
         stockfishOutput = new BufferedReader(new InputStreamReader(stockfishProcess.getInputStream()));
 
-        // Wait for UCI acknowledgment
         sendCommand("uci");
         waitForResponse("uciok", 5000);
 
@@ -129,8 +121,7 @@ public class StockfishIntegration {
     }
 
     private void configureEngine() throws IOException {
-        // Set engine options
-        sendCommand("setoption name Hash value 128"); // 128MB hash
+        sendCommand("setoption name Hash value 128");
         sendCommand("setoption name Threads value " + Math.min(4, Runtime.getRuntime().availableProcessors()));
         sendCommand("setoption name MultiPV value " + multiPv);
         sendCommand("setoption name Skill Level value " + skillLevel);
@@ -204,7 +195,6 @@ public class StockfishIntegration {
         }, executor);
     }
     
-    // Legacy callback-based method for backward compatibility
     public void analyzePosition(String fen, Consumer<AnalysisResult> callback) {
         analyzePosition(fen).thenAccept(callback).exceptionally(throwable -> {
             callback.accept(new AnalysisResult("Error: " + throwable.getMessage()));
@@ -227,7 +217,6 @@ public class StockfishIntegration {
         });
     }
     
-    // Legacy callback-based method
     public void requestHint(String fen, Consumer<String> callback) {
         requestHint(fen).thenAccept(callback).exceptionally(throwable -> {
             callback.accept("Error: " + throwable.getMessage());
@@ -264,7 +253,6 @@ public class StockfishIntegration {
         }, executor);
     }
     
-    // Legacy callback-based method
     public void evaluatePosition(String fen, Consumer<EvaluationResult> callback) {
         evaluatePosition(fen).thenAccept(callback).exceptionally(throwable -> {
             callback.accept(new EvaluationResult("Error: " + throwable.getMessage()));
@@ -273,7 +261,6 @@ public class StockfishIntegration {
     }
 
     private void parseInfoLine(String line, AnalysisResult result) {
-        // Parse centipawn evaluation
         Matcher cpMatcher = INFO_PATTERN.matcher(line);
         if (cpMatcher.find()) {
             int depth = Integer.parseInt(cpMatcher.group(1));
@@ -287,7 +274,6 @@ public class StockfishIntegration {
             }
         }
 
-        // Parse mate scores
         Matcher mateMatcher = MATE_PATTERN.matcher(line);
         if (mateMatcher.find()) {
             int depth = Integer.parseInt(mateMatcher.group(1));
@@ -398,7 +384,6 @@ public class StockfishIntegration {
         return initializationFuture.thenApply(v -> isAvailable());
     }
 
-    // Configuration methods
     public void setAnalysisDepth(int depth) {
         this.analysisDepth = Math.max(1, Math.min(30, depth));
     }
@@ -422,7 +407,6 @@ public class StockfishIntegration {
         }
     }
 
-    // Result classes
     public static class AnalysisResult {
         public String bestMove;
         public String evaluation;

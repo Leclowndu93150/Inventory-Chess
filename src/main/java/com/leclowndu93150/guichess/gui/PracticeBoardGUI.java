@@ -27,33 +27,22 @@ public class PracticeBoardGUI extends ChessGUI {
     private ChessPosition promotionTo;
 
     public PracticeBoardGUI(ServerPlayer player) {
-        super(player, null, PieceColor.WHITE); // Pass null for game since we're not using it
-
-        // Initialize practiceBoard AFTER calling super constructor
+        super(player, null, PieceColor.WHITE);
         this.practiceBoard = new ChessBoard();
-
-        // Override the title set by parent
         setTitle(Component.literal("§dPractice Board"));
     }
 
     public PracticeBoardGUI(ServerPlayer player, String fen) {
         super(player, null, PieceColor.WHITE);
-
-        // Initialize practiceBoard AFTER calling super constructor
-        this.practiceBoard = new ChessBoard(); // TODO: Load from FEN when implemented
-
-        // Override the title set by parent
+        this.practiceBoard = new ChessBoard();
         setTitle(Component.literal("§dPosition Analysis"));
     }
 
     @Override
     public void afterOpen() {
         super.afterOpen();
-        // Update the board after the GUI is fully opened
         updateBoard();
     }
-
-    // Override the constructor ordering issue by updating after initialization
 
     @Override
     protected ChessBoard getBoard() {
@@ -62,7 +51,7 @@ public class PracticeBoardGUI extends ChessGUI {
 
     @Override
     protected Set<ChessPosition> getValidMoves() {
-        return validMoves != null ? validMoves : new HashSet<>();
+        return validMoves;
     }
 
     @Override
@@ -77,27 +66,22 @@ public class PracticeBoardGUI extends ChessGUI {
 
     @Override
     public boolean canPlayerClose() {
-        return true; // Practice board can always be closed
+        return true;
     }
 
     @Override
     public void onClose() {
-        // Don't reopen like normal chess games
-        // Call SimpleGui.onClose() directly, not ChessGUI.onClose()
         super.onClose();
     }
 
     @Override
     protected void handleSquareClick(ChessPosition position) {
-        if (practiceBoard == null) return; // Safety check
+        if (practiceBoard == null) return;
 
         ChessPiece piece = practiceBoard.getPiece(position);
-
-        // Priority 1: If we have a selection and this is a valid move, make the move
         if (selectedSquare != null && validMoves.contains(position)) {
             ChessPiece selectedPiece = practiceBoard.getPiece(selectedSquare);
 
-            // Check for promotion
             if (selectedPiece != null && selectedPiece.getType() == PieceType.PAWN &&
                     ((selectedPiece.isWhite() && position.rank == 7) ||
                             (selectedPiece.isBlack() && position.rank == 0))) {
@@ -105,11 +89,10 @@ public class PracticeBoardGUI extends ChessGUI {
                 return;
             }
 
-            // Make the move/capture
             if (makeMove(selectedSquare, position, null)) {
                 if (piece != null) {
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SUCCESS);
-                    player.sendSystemMessage(Component.literal("§aCaptured " + piece.displayName.getString() + "!"));
+                    player.sendSystemMessage(Component.literal("§aCaptured " + piece.getDisplayName().getString() + "!"));
                 } else {
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
                 }
@@ -120,7 +103,6 @@ public class PracticeBoardGUI extends ChessGUI {
             return;
         }
 
-        // Priority 2: If there's a piece, select it (any color)
         if (piece != null) {
             selectedSquare = position;
             validMoves = getPracticeValidMovesFrom(position);
@@ -129,7 +111,6 @@ public class PracticeBoardGUI extends ChessGUI {
             return;
         }
 
-        // Priority 3: Deselect
         selectedSquare = null;
         validMoves.clear();
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
@@ -143,7 +124,6 @@ public class PracticeBoardGUI extends ChessGUI {
         ChessPiece piece = practiceBoard.getPiece(from);
         if (piece == null) return moves;
 
-        // Get all pseudo-legal moves for this piece, ignoring turn
         PieceColor originalTurn = practiceBoard.getCurrentTurn();
         PieceColor pieceColor = piece.isWhite() ? PieceColor.WHITE : PieceColor.BLACK;
         practiceBoard.setCurrentTurn(pieceColor);
@@ -155,7 +135,6 @@ public class PracticeBoardGUI extends ChessGUI {
             }
         }
 
-        // Restore original turn
         practiceBoard.setCurrentTurn(originalTurn);
         return moves;
     }
@@ -171,7 +150,6 @@ public class PracticeBoardGUI extends ChessGUI {
         PieceColor pieceColor = piece.isWhite() ? PieceColor.WHITE : PieceColor.BLACK;
         practiceBoard.setCurrentTurn(pieceColor);
 
-        // Find the matching legal move
         List<ChessMove> legalMoves = practiceBoard.getLegalMoves();
         ChessMove moveToMake = null;
         for (ChessMove move : legalMoves) {
@@ -193,12 +171,9 @@ public class PracticeBoardGUI extends ChessGUI {
         if (moveToMake != null) {
             boolean success = practiceBoard.makeMove(moveToMake);
             if (success) {
-                // Don't restore turn - let it switch naturally for practice
                 return true;
             }
         }
-
-        // Restore original turn if move failed
         practiceBoard.setCurrentTurn(originalTurn);
         return false;
     }
@@ -234,8 +209,8 @@ public class PracticeBoardGUI extends ChessGUI {
         ChessPiece piece = ChessPiece.fromColorAndType(color, pieceType);
 
         return new GuiElementBuilder(Items.GRAY_DYE)
-                .setCustomModelData(piece.modelData)
-                .setName(piece.displayName)
+                .setCustomModelData(piece.getModelData())
+                .setName(piece.getDisplayName())
                 .setCallback((index, type, action, gui) -> {
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SUCCESS);
                     makeMove(promotionFrom, promotionTo, pieceType);
@@ -253,7 +228,6 @@ public class PracticeBoardGUI extends ChessGUI {
     }
 
     private void setupPracticeUtilities() {
-        // Reset board
         setSlot(8, new GuiElementBuilder(Items.PAPER)
                 .setName(Component.literal("§cReset Board"))
                 .setCallback((index, type, action, gui) -> {
@@ -264,7 +238,6 @@ public class PracticeBoardGUI extends ChessGUI {
                     updateBoard();
                 }));
 
-        // Flip board
         setSlot(17, new GuiElementBuilder(Items.COMPASS)
                 .setName(Component.literal("§9Flip Board"))
                 .setCallback((index, type, action, gui) -> {
@@ -272,7 +245,6 @@ public class PracticeBoardGUI extends ChessGUI {
                     player.sendSystemMessage(Component.literal("§9Board flipping not implemented yet"));
                 }));
 
-        // Analyze with Stockfish
         setSlot(26, new GuiElementBuilder(Items.ENDER_EYE)
                 .setName(Component.literal("§dAnalyze Position"))
                 .setCallback((index, type, action, gui) -> {
@@ -284,7 +256,6 @@ public class PracticeBoardGUI extends ChessGUI {
                     }
                 }));
 
-        // Get FEN
         setSlot(35, new GuiElementBuilder(Items.BOOK)
                 .setName(Component.literal("§7Show FEN"))
                 .setCallback((index, type, action, gui) -> {
@@ -294,7 +265,6 @@ public class PracticeBoardGUI extends ChessGUI {
                     }
                 }));
 
-        // Undo move
         setSlot(44, new GuiElementBuilder(Items.SPECTRAL_ARROW)
                 .setName(Component.literal("§6Undo Move"))
                 .setCallback((index, type, action, gui) -> {
@@ -302,10 +272,8 @@ public class PracticeBoardGUI extends ChessGUI {
                     player.sendSystemMessage(Component.literal("§6Undo not implemented yet"));
                 }));
 
-        // Current turn indicator
         updatePracticeTurnIndicator();
 
-        // Exit button
         setSlot(62, new GuiElementBuilder(Items.BARRIER)
                 .setName(Component.literal("§cClose Practice Board"))
                 .setCallback((index, type, action, gui) -> {
@@ -315,7 +283,7 @@ public class PracticeBoardGUI extends ChessGUI {
     }
 
     private void updatePracticeTurnIndicator() {
-        if (practiceBoard == null) return; // Safety check during construction
+        if (practiceBoard == null) return;
 
         PieceColor currentTurn = practiceBoard.getCurrentTurn();
         GuiElementBuilder turnIndicator;
@@ -336,17 +304,14 @@ public class PracticeBoardGUI extends ChessGUI {
 
     @Override
     protected void updateTimerDisplays() {
-        // Practice mode doesn't have timers - do nothing
     }
 
     @Override
     protected void updateDrawButtons() {
-        // Practice mode doesn't have draw buttons - do nothing
     }
 
     @Override
     protected void setupAnalysisTools() {
-        // Analysis tools are handled in setupPracticeUtilities
     }
 
     @Override

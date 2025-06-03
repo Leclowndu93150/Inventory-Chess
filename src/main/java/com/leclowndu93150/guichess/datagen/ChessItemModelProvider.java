@@ -24,37 +24,33 @@ public class ChessItemModelProvider extends ItemModelProvider {
         ItemModelBuilder grayDyeBuilder = withExistingParent("gray_dye", "item/generated")
                 .texture("layer0", "minecraft:item/gray_dye");
 
-        // Register chess piece models (original pieces)
         for (ChessPiece piece : ChessPiece.values()) {
-            withExistingParent("gray_dye_" + piece.modelName, "item/generated")
-                    .texture("layer0", modLoc("item/chess/" + piece.modelName));
+            withExistingParent("gray_dye_" + piece.getModelName(), "item/generated")
+                    .texture("layer0", modLoc("item/chess/" + piece.getModelName()));
 
             grayDyeBuilder.override()
-                    .predicate(ResourceLocation.parse("custom_model_data"), piece.modelData)
-                    .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + piece.modelName)));
+                    .predicate(ResourceLocation.parse("custom_model_data"), piece.getModelData())
+                    .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + piece.getModelName())));
         }
 
-        // Register piece overlay models (pieces with background overlays)
         registerPieceOverlays(grayDyeBuilder);
 
-        // Register board square models
         for (BoardSquare square : BoardSquare.values()) {
-            withExistingParent("gray_dye_" + square.modelName, "item/generated")
-                    .texture("layer0", modLoc("item/board/" + square.modelName));
+            withExistingParent("gray_dye_" + square.getModelName(), "item/generated")
+                    .texture("layer0", modLoc("item/board/" + square.getModelName()));
 
             grayDyeBuilder.override()
-                    .predicate(ResourceLocation.parse("custom_model_data"), square.modelData)
-                    .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + square.modelName)));
+                    .predicate(ResourceLocation.parse("custom_model_data"), square.getModelData())
+                    .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + square.getModelName())));
         }
 
-        // Register game utility models
         for (GameUtility utility : GameUtility.values()) {
-            withExistingParent("gray_dye_" + utility.modelName, "item/generated")
-                    .texture("layer0", modLoc("item/ui/" + utility.modelName));
+            withExistingParent("gray_dye_" + utility.getModelName(), "item/generated")
+                    .texture("layer0", modLoc("item/ui/" + utility.getModelName()));
 
             grayDyeBuilder.override()
-                    .predicate(ResourceLocation.parse("custom_model_data"), utility.modelData)
-                    .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + utility.modelName)));
+                    .predicate(ResourceLocation.parse("custom_model_data"), utility.getModelData())
+                    .model(new ModelFile.UncheckedModelFile(modLoc("item/gray_dye_" + utility.getModelName())));
         }
 
         System.out.println("Generated models for:");
@@ -65,7 +61,6 @@ public class ChessItemModelProvider extends ItemModelProvider {
     }
 
     private void registerPieceOverlays(ItemModelBuilder grayDyeBuilder) {
-        // Use the centralized registry to ensure consistent model data values
         Map<String, Integer> overlayModelData = OverlayModelDataRegistry.getAllModelData();
 
         for (Map.Entry<String, Integer> entry : overlayModelData.entrySet()) {

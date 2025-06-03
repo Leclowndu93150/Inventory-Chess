@@ -324,27 +324,12 @@ public class ChallengeConfigGUI extends SimpleGui {
     }
     
     private Item getTimeControlItem(TimeControl timeControl) {
-        // Use different items based on time control type for better visual distinction
         return switch (timeControl.name()) {
-            // Bullet games (very fast) - use gunpowder/firework
             case "BULLET_1_0", "BULLET_2_1" -> Items.GUNPOWDER;
-            
-            // Blitz games (fast) - use redstone/clock items
-            case "BLITZ_3_0", "BLITZ_5_0", "BLITZ_3_2", "BLITZ_5_3" -> Items.REDSTONE;
-            
-            // Rapid games (medium) - use clock
-            case "RAPID_10_0", "RAPID_15_10", "RAPID_30_0" -> Items.CLOCK;
-            
-            // Classical games (slow) - use book/quill
-            case "CLASSICAL_60_0", "CLASSICAL_90_30" -> Items.WRITABLE_BOOK;
-            
-            // Correspondence (very slow) - use written book
-            case "CORRESPONDENCE_1DAY", "CORRESPONDENCE_3DAY" -> Items.WRITTEN_BOOK;
-            
-            // Unlimited - use infinity symbol (ender pearl)
+            case "BLITZ_3_0", "BLITZ_5_0", "BLITZ_3_2", "BLITZ_5_3" -> Items.BLAZE_POWDER;
+            case "RAPID_10_0", "RAPID_15_10", "RAPID_30_0" -> Items.FIREWORK_ROCKET;
+            case "CLASSICAL_60_0" -> Items.BOOK;
             case "UNLIMITED" -> Items.ENDER_PEARL;
-            
-            // Default fallback
             default -> Items.CLOCK;
         };
     }

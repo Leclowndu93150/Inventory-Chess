@@ -12,6 +12,7 @@ import eu.pb4.sgui.api.gui.AnvilInputGui;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -200,7 +201,7 @@ public class ChallengeFlowGUI extends SimpleGui {
             if (slot >= 18) break; // Only show first 18 options
             
             boolean selected = tc.equals(timeControl);
-            setSlot(slot, new GuiElementBuilder(Items.CLOCK)
+            setSlot(slot, new GuiElementBuilder(getTimeControlItem(tc))
                     .setName(Component.literal((selected ? "§a" : "§f") + tc.displayName))
                     .addLoreLine(Component.literal("§7" + tc.name()))
                     .addLoreLine(Component.literal(""))
@@ -504,5 +505,16 @@ public class ChallengeFlowGUI extends SimpleGui {
         }
         betItems.clear();
         super.onClose();
+    }
+
+    private Item getTimeControlItem(TimeControl timeControl) {
+        return switch (timeControl.name()) {
+            case "BULLET_1_0", "BULLET_2_1" -> Items.GUNPOWDER;
+            case "BLITZ_3_0", "BLITZ_5_0", "BLITZ_3_2", "BLITZ_5_3" -> Items.BLAZE_POWDER;
+            case "RAPID_10_0", "RAPID_15_10", "RAPID_30_0" -> Items.FIREWORK_ROCKET;
+            case "CLASSICAL_60_0" -> Items.BOOK;
+            case "UNLIMITED" -> Items.ENDER_PEARL;
+            default -> Items.CLOCK;
+        };
     }
 }

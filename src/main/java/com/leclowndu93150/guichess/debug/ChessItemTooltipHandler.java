@@ -33,35 +33,29 @@ public class ChessItemTooltipHandler {
         int modelData = cmd.value();
         List<Component> tooltip = event.getToolTip();
 
-        // Check if it's a chess piece (original)
         ChessPiece piece = getChessPieceByModelData(modelData);
         if (piece != null) {
             addChessPieceTooltip(tooltip, piece, modelData);
             return;
         }
 
-        // Check if it's a piece overlay (model data 2000+)
         String overlayInfo = getPieceOverlayInfo(modelData);
         if (overlayInfo != null) {
             addPieceOverlayTooltip(tooltip, overlayInfo, modelData);
             return;
         }
 
-        // Check if it's a board square
         BoardSquare square = getBoardSquareByModelData(modelData);
         if (square != null) {
             addBoardSquareTooltip(tooltip, square, modelData);
             return;
         }
 
-        // Check if it's a game utility
         GameUtility utility = getGameUtilityByModelData(modelData);
         if (utility != null) {
             addGameUtilityTooltip(tooltip, utility, modelData);
             return;
         }
-
-        // If we have custom model data but it's not recognized
         if (modelData >= 1000) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.options.advancedItemTooltips) {
@@ -77,7 +71,7 @@ public class ChessItemTooltipHandler {
         tooltip.add(Component.literal("§6§lChess Piece"));
         tooltip.add(Component.literal("§7Type: §f" + piece.getType().name()));
         tooltip.add(Component.literal("§7Color: " + (piece.isWhite() ? "§fWhite" : "§8Black")));
-        tooltip.add(Component.literal("§7Symbol: §f" + piece.symbol));
+        tooltip.add(Component.literal("§7Symbol: §f" + piece.getSymbol()));
         tooltip.add(Component.literal("§7Model ID: §b" + modelData));
 
         Minecraft mc = Minecraft.getInstance();
@@ -105,8 +99,8 @@ public class ChessItemTooltipHandler {
         tooltip.add(Component.literal("§7Type: §f" + formatSquareType(square.name())));
         tooltip.add(Component.literal("§7Model ID: §b" + modelData));
 
-        if (!square.displayName.getString().isEmpty()) {
-            tooltip.add(Component.literal("§7Status: ").append(square.displayName));
+        if (!square.getDisplayName().getString().isEmpty()) {
+            tooltip.add(Component.literal("§7Status: ").append(square.getDisplayName()));
         }
 
         Minecraft mc = Minecraft.getInstance();
@@ -146,7 +140,7 @@ public class ChessItemTooltipHandler {
 
     private static ChessPiece getChessPieceByModelData(int modelData) {
         return Arrays.stream(ChessPiece.values())
-                .filter(piece -> piece.modelData == modelData)
+                .filter(piece -> piece.getModelData() == modelData)
                 .findFirst()
                 .orElse(null);
     }
@@ -154,7 +148,6 @@ public class ChessItemTooltipHandler {
     private static String getPieceOverlayInfo(int modelData) {
         if (modelData < 2000) return null;
 
-        // Get all overlay model data from PieceOverlayHelper
         Map<String, Integer> overlayData = PieceOverlayHelper.getAllOverlayModelData();
 
         for (Map.Entry<String, Integer> entry : overlayData.entrySet()) {
@@ -167,7 +160,6 @@ public class ChessItemTooltipHandler {
     }
 
     private static String formatOverlayName(String overlayKey) {
-        // Convert something like "white_king_selected_light" to "White King (Selected on Light Square)"
         String[] parts = overlayKey.split("_");
         if (parts.length < 3) return overlayKey;
 
@@ -213,14 +205,14 @@ public class ChessItemTooltipHandler {
 
     private static BoardSquare getBoardSquareByModelData(int modelData) {
         return Arrays.stream(BoardSquare.values())
-                .filter(square -> square.modelData == modelData)
+                .filter(square -> square.getModelData() == modelData)
                 .findFirst()
                 .orElse(null);
     }
 
     private static GameUtility getGameUtilityByModelData(int modelData) {
         return Arrays.stream(GameUtility.values())
-                .filter(utility -> utility.modelData == modelData)
+                .filter(utility -> utility.getModelData() == modelData)
                 .findFirst()
                 .orElse(null);
     }

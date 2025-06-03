@@ -18,9 +18,9 @@ public enum BoardSquare {
     VALID_LIGHT_SQUARE(1028, "valid_light_square", Component.literal("§a● Valid Move")),
     VALID_DARK_SQUARE(1029, "valid_dark_square", Component.literal("§a● Valid Move"));
 
-    public final int modelData;
-    public final String modelName;
-    public final Component displayName;
+    private final int modelData;
+    private final String modelName;
+    private final Component displayName;
 
     BoardSquare(int modelData, String modelName, Component displayName) {
         this.modelData = modelData;
@@ -40,4 +40,16 @@ public enum BoardSquare {
     // - piece_lastmove_dark (last moved piece on dark square)
     // - piece_check_light (king in check on light square - kings only)
     // - piece_check_dark (king in check on dark square - kings only)
+
+    public int getModelData() {
+        return modelData;
+    }
+
+    public String getModelName() {
+        return modelName;
+    }
+
+    public Component getDisplayName() {
+        return displayName;
+    }
 }

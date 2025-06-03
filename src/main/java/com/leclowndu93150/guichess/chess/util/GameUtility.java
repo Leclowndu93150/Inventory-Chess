@@ -38,13 +38,25 @@ public enum GameUtility {
     PROMOTE_BISHOP(1082, "promote_bishop", Component.literal("§e⛪ Promote to Bishop")),
     PROMOTE_KNIGHT(1083, "promote_knight", Component.literal("§e🐴 Promote to Knight"));
 
-    public final int modelData;
-    public final String modelName;
-    public final Component displayName;
+    private final int modelData;
+    private final String modelName;
+    private final Component displayName;
 
     GameUtility(int modelData, String modelName, Component displayName) {
         this.modelData = modelData;
         this.modelName = modelName;
         this.displayName = displayName;
+    }
+
+    public int getModelData() {
+        return modelData;
+    }
+
+    public String getModelName() {
+        return modelName;
+    }
+
+    public Component getDisplayName() {
+        return displayName;
     }
 }

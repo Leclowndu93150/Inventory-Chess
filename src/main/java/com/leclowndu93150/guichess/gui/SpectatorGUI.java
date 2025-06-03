@@ -22,17 +22,16 @@ public class SpectatorGUI extends ChessGUI {
 
     @Override
     protected PieceColor getBoardPerspective() {
-        return viewPerspective; // Use our custom perspective instead of playerColor
+        return viewPerspective;
     }
 
     @Override
     protected void handleSquareClick(ChessPosition position) {
-        // Spectators can't make moves, just provide info
         ChessPiece clickedPiece = getBoard().getPiece(position);
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
 
         if (clickedPiece != null) {
-            player.sendSystemMessage(Component.literal("§9" + clickedPiece.displayName.getString() + " at " + position.toNotation()));
+            player.sendSystemMessage(Component.literal("§9" + clickedPiece.getDisplayName().getString() + " at " + position.toNotation()));
         } else {
             player.sendSystemMessage(Component.literal("§9Empty square " + position.toNotation()));
         }
@@ -40,16 +39,12 @@ public class SpectatorGUI extends ChessGUI {
 
     @Override
     protected void setupUtilitySlots() {
-        // Override utility slots for spectator mode
         setupSpectatorUtilities();
     }
 
     private void setupSpectatorUtilities() {
-        // Show timers (but not as part of regular timer display)
         updateSpectatorTimerDisplays();
         updateTurnIndicator();
-
-        // Spectator mode indicator
         setSlot(62, new GuiElementBuilder(Items.BARRIER)
                 .setName(Component.literal("§7Spectator Mode"))
                 .setCallback((index, type, action, gui) -> {
@@ -57,7 +52,6 @@ public class SpectatorGUI extends ChessGUI {
                     player.sendSystemMessage(Component.literal("§7You are spectating this game"));
                 }));
 
-        // Switch perspective
         setSlot(17, new GuiElementBuilder(Items.COMPASS)
                 .setName(Component.literal("§9Switch Perspective"))
                 .setCallback((index, type, action, gui) -> {
@@ -68,7 +62,6 @@ public class SpectatorGUI extends ChessGUI {
                     updateBoard();
                 }));
 
-        // Stop spectating
         setSlot(71, new GuiElementBuilder(Items.ENDER_PEARL)
                 .setName(Component.literal("§cStop Spectating"))
                 .setCallback((index, type, action, gui) -> {
@@ -77,7 +70,6 @@ public class SpectatorGUI extends ChessGUI {
                     close();
                 }));
 
-        // Game info
         setSlot(8, new GuiElementBuilder(Items.BOOK)
                 .setName(Component.literal("§7Game Info"))
                 .setCallback((index, type, action, gui) -> {
@@ -88,11 +80,10 @@ public class SpectatorGUI extends ChessGUI {
                     player.sendSystemMessage(Component.literal("§7Time Control: " + game.getTimeControl().displayName));
                 }));
 
-        // Show analysis if available
         setSlot(9, new GuiElementBuilder(Items.ENDER_EYE)
                 .setName(Component.literal("§dRequest Analysis"))
                 .setCallback((index, type, action, gui) -> {
-                    handleHint(); // Reuse the hint functionality for spectators
+                    handleHint();
                 }));
     }
 
@@ -103,7 +94,6 @@ public class SpectatorGUI extends ChessGUI {
         GuiElementBuilder blackTimer = new GuiElementBuilder(Items.CLOCK)
                 .setName(Component.literal("§8Black: " + game.formatTime(game.getBlackTimeLeft())));
 
-        // Always show from spectator's perspective
         if (viewPerspective == PieceColor.WHITE) {
             setSlot(53, whiteTimer);
             setSlot(26, blackTimer);
@@ -126,24 +116,21 @@ public class SpectatorGUI extends ChessGUI {
 
     @Override
     protected void updateDrawButtons() {
-        // Spectators don't see draw buttons - do nothing
     }
 
     @Override
     protected void setupAnalysisTools() {
-        // Analysis tools are handled in setupSpectatorUtilities
     }
 
     @Override
     public boolean canPlayerClose() {
-        return true; // Spectators can always close
+        return true;
     }
 
     @Override
     public void onClose() {
         GameManager.getInstance().removeSpectator(game, player);
-        // Don't call ChessGUI's onClose which tries to reopen for active games
-        super.onClose(); // Call SimpleGui.onClose()
+        super.onClose();
     }
 
     @Override
@@ -184,7 +171,6 @@ public class SpectatorGUI extends ChessGUI {
 
     @Override
     protected void handleHint() {
-        // Allow spectators to get hints/analysis
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.HINT);
         StockfishIntegration.getInstance().requestHint(getBoard().toFEN(), hint -> {
             player.sendSystemMessage(Component.literal("§9Spectator Analysis: " + hint));

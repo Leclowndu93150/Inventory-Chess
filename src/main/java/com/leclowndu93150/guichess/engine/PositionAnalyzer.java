@@ -8,7 +8,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-// Additional analysis utilities
 class PositionAnalyzer {
     private final StockfishIntegration stockfish;
 
@@ -27,13 +26,11 @@ class PositionAnalyzer {
             analysis.gameId = game.getGameId();
             analysis.moves = game.getBoard().getMoveHistory();
 
-            // Analyze each position for accuracy
             ChessBoard tempBoard = new ChessBoard();
             for (int i = 0; i < analysis.moves.size(); i++) {
                 ChessMove move = analysis.moves.get(i);
                 String fen = tempBoard.toFEN();
 
-                // Get best move for this position
                 CompletableFuture<StockfishIntegration.AnalysisResult> future = new CompletableFuture<>();
                 stockfish.analyzePosition(fen, future::complete);
 
@@ -46,13 +43,11 @@ class PositionAnalyzer {
                     moveAnalysis.bestMove = result.bestMove;
                     moveAnalysis.evaluation = result.evaluation;
 
-                    // Calculate accuracy based on difference from best move
                     if (move.toNotation().equals(result.bestMove)) {
                         moveAnalysis.accuracy = 100.0;
                         moveAnalysis.classification = "Best";
                     } else {
-                        // This would require more sophisticated analysis
-                        moveAnalysis.accuracy = 85.0; // Placeholder
+                        moveAnalysis.accuracy = 85.0;
                         moveAnalysis.classification = "Good";
                     }
 
@@ -64,7 +59,6 @@ class PositionAnalyzer {
                 }
             }
 
-            // Calculate overall accuracy
             double totalAccuracy = analysis.moveAnalyses.stream()
                     .mapToDouble(ma -> ma.accuracy)
                     .average()
@@ -104,6 +98,6 @@ class PositionAnalyzer {
         public String bestMove;
         public String evaluation;
         public double accuracy;
-        public String classification; // "Best", "Excellent", "Good", "Inaccuracy", "Mistake", "Blunder"
+        public String classification;
     }
 }

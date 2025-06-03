@@ -6,10 +6,6 @@ import com.leclowndu93150.guichess.chess.pieces.PieceType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Centralized registry for overlay model data to ensure consistency between
- * data generation and runtime usage.
- */
 public class OverlayModelDataRegistry {
 
     private static final Map<String, Integer> OVERLAY_MODEL_DATA = new LinkedHashMap<>();
@@ -22,8 +18,6 @@ public class OverlayModelDataRegistry {
     private static void generateOverlayModelData() {
         int modelDataCounter = STARTING_MODEL_DATA;
 
-        // IMPORTANT: We must iterate in a consistent order!
-        // Using the exact order from ChessPiece enum
         ChessPiece[] pieces = {
                 ChessPiece.WHITE_KING, ChessPiece.WHITE_QUEEN, ChessPiece.WHITE_ROOK,
                 ChessPiece.WHITE_BISHOP, ChessPiece.WHITE_KNIGHT, ChessPiece.WHITE_PAWN,
@@ -32,9 +26,8 @@ public class OverlayModelDataRegistry {
         };
 
         for (ChessPiece piece : pieces) {
-            String baseName = piece.modelName;
+            String baseName = piece.getModelName();
 
-            // IMPORTANT: Keep this order exactly the same as in ChessItemModelProvider!
             OVERLAY_MODEL_DATA.put(baseName + "_light", modelDataCounter++);
             OVERLAY_MODEL_DATA.put(baseName + "_dark", modelDataCounter++);
             OVERLAY_MODEL_DATA.put(baseName + "_selected_light", modelDataCounter++);
@@ -44,7 +37,6 @@ public class OverlayModelDataRegistry {
             OVERLAY_MODEL_DATA.put(baseName + "_lastmove_light", modelDataCounter++);
             OVERLAY_MODEL_DATA.put(baseName + "_lastmove_dark", modelDataCounter++);
 
-            // Special check overlays for kings only
             if (piece.getType() == PieceType.KING) {
                 OVERLAY_MODEL_DATA.put(baseName + "_check_light", modelDataCounter++);
                 OVERLAY_MODEL_DATA.put(baseName + "_check_dark", modelDataCounter++);

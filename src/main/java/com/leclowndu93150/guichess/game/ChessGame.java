@@ -21,12 +21,12 @@ import java.util.*;
 
 public class ChessGame {
     private final UUID gameId;
-    final ServerPlayer whitePlayer;
-    final ServerPlayer blackPlayer;
+    private final ServerPlayer whitePlayer;
+    private final ServerPlayer blackPlayer;
     private final TimeControl timeControl;
     private final long startTime;
 
-    ChessBoard board;
+    protected ChessBoard board;
     private int whiteTimeLeft;
     private int blackTimeLeft;
     private boolean gameActive = true;
@@ -184,7 +184,7 @@ public class ChessGame {
         }
     }
 
-    void endGame(GameState finalState) {
+    protected void endGame(GameState finalState) {
         if (!gameActive) return; // Prevent multiple endGame calls
         gameActive = false;
 
@@ -635,7 +635,7 @@ public class ChessGame {
         if (blackPlayer != null) blackPlayer.sendSystemMessage(Component.literal(message));
     }
 
-    void updatePlayerGUIs() {
+    private void updatePlayerGUIs() {
         ChessGUI whiteGUI = GameManager.getInstance().getPlayerGUI(whitePlayer);
         ChessGUI blackGUI = GameManager.getInstance().getPlayerGUI(blackPlayer);
 
@@ -647,7 +647,7 @@ public class ChessGame {
         GameManager.getInstance().updateSpectatorGUIs(this);
     }
     
-    void playMoveSound() {
+    private void playMoveSound() {
         if (board.getMoveHistory().isEmpty()) return;
         
         ChessMove lastMove = board.getMoveHistory().get(board.getMoveHistory().size() - 1);

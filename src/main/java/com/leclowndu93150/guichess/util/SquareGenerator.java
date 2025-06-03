@@ -10,11 +10,9 @@ import javax.imageio.ImageIO;
 
 public class SquareGenerator {
 
-    // Base square colors - Keep original pleasant colors
     private static final Color LIGHT_SQUARE = new Color(240, 217, 181);  // Original beige/cream
     private static final Color DARK_SQUARE = new Color(181, 136, 99);    // Original brown
 
-    // Overlay colors (with transparency) - Softer and more pleasant
     private static final Color SELECTED_OVERLAY = new Color(255, 235, 59, 100);     // Soft golden yellow
     private static final Color LAST_MOVE_OVERLAY = new Color(255, 183, 77, 90);     // Soft orange
     private static final Color CAPTURE_OVERLAY = new Color(244, 67, 54, 90);        // Soft red
@@ -58,16 +56,14 @@ public class SquareGenerator {
 
     private static void generatePieceOverlays(String overlayPath) throws IOException {
         for (ChessPiece piece : ChessPiece.values()) {
-            String baseName = piece.modelName;
+            String baseName = piece.getModelName();
 
-            // Load the original piece texture (assuming they exist in chess/ folder)
             BufferedImage pieceTexture = loadPieceTexture(baseName);
             if (pieceTexture == null) {
                 System.out.println("⚠ Warning: Could not load texture for " + baseName + ", creating placeholder");
                 pieceTexture = createPlaceholderPieceTexture(piece);
             }
 
-            // Generate all background variations for this piece
             createPieceWithBackground(overlayPath + baseName + "_light.png", pieceTexture, LIGHT_SQUARE, null);
             createPieceWithBackground(overlayPath + baseName + "_dark.png", pieceTexture, DARK_SQUARE, null);
 
@@ -80,7 +76,6 @@ public class SquareGenerator {
             createPieceWithBackground(overlayPath + baseName + "_lastmove_light.png", pieceTexture, LIGHT_SQUARE, LAST_MOVE_OVERLAY);
             createPieceWithBackground(overlayPath + baseName + "_lastmove_dark.png", pieceTexture, DARK_SQUARE, LAST_MOVE_OVERLAY);
 
-            // Special check overlay (only for kings)
             if (piece.getType().name().equals("KING")) {
                 createPieceWithBackground(overlayPath + baseName + "_check_light.png", pieceTexture, LIGHT_SQUARE, CHECK_OVERLAY);
                 createPieceWithBackground(overlayPath + baseName + "_check_dark.png", pieceTexture, DARK_SQUARE, CHECK_OVERLAY);
@@ -106,14 +101,12 @@ public class SquareGenerator {
         Graphics2D g = placeholder.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Create a simple colored circle as placeholder
         Color pieceColor = piece.isWhite() ? Color.WHITE : Color.BLACK;
         g.setColor(pieceColor);
         g.fillOval(2, 2, 12, 12);
         g.setColor(pieceColor.darker());
         g.drawOval(2, 2, 12, 12);
 
-        // Add piece type indicator
         g.setColor(piece.isWhite() ? Color.BLACK : Color.WHITE);
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 8));
         String typeChar = piece.getType().name().substring(0, 1);
@@ -131,17 +124,14 @@ public class SquareGenerator {
         Graphics2D g = result.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Draw background
         g.setColor(backgroundColor);
         g.fillRect(0, 0, 16, 16);
 
-        // Draw overlay if provided
         if (overlay != null) {
             g.setColor(overlay);
             g.fillRect(0, 0, 16, 16);
         }
 
-        // Draw piece on top
         g.drawImage(pieceTexture, 0, 0, null);
 
         g.dispose();
@@ -165,11 +155,9 @@ public class SquareGenerator {
         Graphics2D g = square.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Base color
         g.setColor(baseColor);
         g.fillRect(0, 0, 16, 16);
 
-        // Overlay color
         g.setColor(overlayColor);
         g.fillRect(0, 0, 16, 16);
 
