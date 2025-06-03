@@ -9,6 +9,16 @@ import com.leclowndu93150.guichess.chess.util.GameState;
 
 import java.util.*;
 
+/**
+ * Core chess board implementation handling game logic, move validation, and state management.
+ * 
+ * Features:
+ * - Full chess rule implementation (castling, en passant, promotion)
+ * - Legal move generation with check validation
+ * - Game state detection (checkmate, stalemate, draws)
+ * - FEN notation support
+ * - Move history tracking
+ */
 public class ChessBoard {
     private ChessPiece[] board = new ChessPiece[64];
     private PieceColor currentTurn = PieceColor.WHITE;
@@ -57,6 +67,13 @@ public class ChessBoard {
         }
     }
 
+    /**
+     * Executes a chess move on the board after validation.
+     * Updates all board state including castling rights, en passant, and game state.
+     * 
+     * @param move the move to execute (assumed to be legal)
+     * @return true if move was executed successfully
+     */
     public boolean makeMove(ChessMove move) {
         ChessPiece movingPiece = getPiece(move.from);
         ChessPiece capturedPiece = getPiece(move.to);
@@ -272,6 +289,12 @@ public class ChessBoard {
         return true;
     }
 
+    /**
+     * Determines if a king of the specified color is currently in check.
+     * 
+     * @param color the color of the king to check
+     * @return true if the king is under attack
+     */
     public boolean isInCheck(PieceColor color) {
         ChessPosition kingPos = findKing(color);
         if (kingPos == null) {
@@ -406,6 +429,12 @@ public class ChessBoard {
         return null;
     }
 
+    /**
+     * Generates all legal moves for the current player.
+     * Includes full validation - moves that would leave king in check are excluded.
+     * 
+     * @return list of all legal moves available to current player
+     */
     public List<ChessMove> getLegalMoves() {
         List<ChessMove> allPseudoLegalMoves = new ArrayList<>();
         for (int i = 0; i < 64; i++) {
@@ -700,6 +729,11 @@ public class ChessBoard {
         return fen.toString();
     }
 
+    /**
+     * Converts the current board state to FEN (Forsyth-Edwards Notation).
+     * 
+     * @return complete FEN string representing current position
+     */
     public String toFEN() {
         String boardPart = boardToFENBoardPart();
         String turnPart = (currentTurn == PieceColor.WHITE ? "w" : "b");

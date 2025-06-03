@@ -1,6 +1,13 @@
 package com.leclowndu93150.guichess.chess.board;
 
-// Coordinate system for chess board (a1 = 0, h8 = 63)
+/**
+ * Represents a position on the chess board using file-rank coordinates.
+ * 
+ * Coordinate system:
+ * - Files: 0-7 (a-h)
+ * - Ranks: 0-7 (1-8)
+ * - Index mapping: a1=0, h8=63
+ */
 public class ChessPosition {
     public final int file; // 0-7 (a-h)
     public final int rank; // 0-7 (1-8)

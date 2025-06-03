@@ -14,8 +14,60 @@ import net.minecraft.world.item.Item;
 import java.util.List;
 
 /**
- * Challenge Configuration GUI
- * Allows players to configure game settings before challenging opponents
+ * Challenge configuration interface for setting up chess games before sending challenges to opponents.
+ * 
+ * <p>This GUI provides a comprehensive configuration system for chess challenges, allowing players
+ * to customize all aspects of their game setup before sending a challenge request. It serves as
+ * the primary interface for configuring competitive chess matches between players.
+ * 
+ * <h3>Configuration Options:</h3>
+ * <ul>
+ *   <li><strong>Opponent Type:</strong> Human players vs AI bots (bot implementation pending)</li>
+ *   <li><strong>Time Control:</strong> Complete selection of standard chess time formats</li>
+ *   <li><strong>Hint System:</strong> Configurable hint allowance (0-3 hints per game)</li>
+ *   <li><strong>Side Selection:</strong> Choose to play as White, Black, or random assignment</li>
+ *   <li><strong>Bot Configuration:</strong> ELO rating selection for AI difficulty (when implemented)</li>
+ *   <li><strong>Item Betting:</strong> Wager system for competitive matches (planned feature)</li>
+ * </ul>
+ * 
+ * <h3>User Experience Flow:</h3>
+ * <ol>
+ *   <li>Player opens challenge configuration</li>
+ *   <li>Selects opponent type and configures related settings</li>
+ *   <li>Chooses time control from standard chess formats</li>
+ *   <li>Sets optional features (hints, betting)</li>
+ *   <li>Reviews configuration and sends challenge</li>
+ *   <li>Proceeds to opponent selection if challenging human player</li>
+ * </ol>
+ * 
+ * <h3>Integration Points:</h3>
+ * <ul>
+ *   <li><strong>GameManager:</strong> Creates and manages challenge instances</li>
+ *   <li><strong>TimeControl:</strong> Validates and applies timing configurations</li>
+ *   <li><strong>Player Selection:</strong> Interfaces with server player list for opponent selection</li>
+ *   <li><strong>Challenge System:</strong> Generates properly configured ChessChallenge objects</li>
+ * </ul>
+ * 
+ * <h3>State Management:</h3>
+ * The GUI maintains configuration state locally until challenge creation, allowing users
+ * to modify settings freely without affecting other systems. Only valid configurations
+ * are permitted to proceed to challenge creation.
+ * 
+ * <h3>Future Features:</h3>
+ * <ul>
+ *   <li>Bot integration with adjustable difficulty settings</li>
+ *   <li>Item betting system with inventory integration</li>
+ *   <li>Tournament mode configuration</li>
+ *   <li>Saved configuration presets</li>
+ * </ul>
+ * 
+ * @see ChessChallenge For the challenge data structure created by this interface
+ * @see GameManager#createChallengeWithConfiguration For challenge creation integration
+ * @see TimeControl For available time control options
+ */
+/**
+ * GUI for configuring chess game challenges.
+ * Handles opponent selection, time controls, betting, and game setup.
  */
 public class ChallengeConfigGUI extends SimpleGui {
     private final ServerPlayer player;
@@ -163,6 +215,29 @@ public class ChallengeConfigGUI extends SimpleGui {
                 .setCallback((index, type, action, gui) -> sendChallenge()));
     }
     
+    /**
+     * Opens a sub-menu interface for selecting chess time control settings.
+     * 
+     * <p>This method creates a dedicated GUI for time control selection, providing
+     * visual representation of all available chess timing formats. The sub-menu
+     * approach prevents the main configuration interface from becoming cluttered
+     * while offering comprehensive time control options.
+     * 
+     * <h3>Time Control Categories:</h3>
+     * <ul>
+     *   <li><strong>Bullet:</strong> Fast-paced games (1-2 minutes)</li>
+     *   <li><strong>Blitz:</strong> Quick games (3-5 minutes)</li>
+     *   <li><strong>Rapid:</strong> Medium-length games (10-30 minutes)</li>
+     *   <li><strong>Classical:</strong> Long-form games (60+ minutes)</li>
+     *   <li><strong>Unlimited:</strong> No time restrictions</li>
+     * </ul>
+     * 
+     * <p>Each time control option displays its category-appropriate icon and
+     * indicates the current selection state. The interface provides immediate
+     * feedback and returns to the main configuration screen upon selection.
+     * 
+     * @see TimeControl For the complete list of available time controls
+     */
     private void openTimeControlMenu() {
         // Open sub-menu for time control selection
         SimpleGui timeMenu = new SimpleGui(MenuType.GENERIC_9x3, player, false);
@@ -271,6 +346,39 @@ public class ChallengeConfigGUI extends SimpleGui {
         playerMenu.open();
     }
     
+    /**
+     * Creates and sends a chess challenge with all configured settings to the specified target player.
+     * 
+     * <p>This method represents the culmination of the challenge configuration process, taking all
+     * user-selected settings and creating a formal challenge request. It integrates with the
+     * GameManager to ensure proper challenge lifecycle management and provides comprehensive
+     * feedback to both the challenger and target.
+     * 
+     * <h3>Challenge Creation Process:</h3>
+     * <ol>
+     *   <li>Validates target player availability</li>
+     *   <li>Packages all configuration settings into a challenge request</li>
+     *   <li>Registers the challenge with the GameManager</li>
+     *   <li>Provides feedback and instructions to both players</li>
+     * </ol>
+     * 
+     * <h3>Configuration Integration:</h3>
+     * All settings from the configuration GUI are packaged into the challenge:
+     * <ul>
+     *   <li>Selected time control and timing parameters</li>
+     *   <li>Hint allowance for both players</li>
+     *   <li>Side preference (White, Black, or random assignment)</li>
+     *   <li>Any additional game modifiers</li>
+     * </ul>
+     * 
+     * <p>The method handles failure cases gracefully, providing clear feedback when
+     * challenges cannot be created (e.g., target player busy, invalid configuration).
+     * 
+     * @param target The player who will receive the challenge request
+     * 
+     * @see GameManager#createChallengeWithConfiguration For the underlying challenge creation
+     * @see ChessChallenge For the challenge data structure created
+     */
     private void sendConfiguredChallenge(ServerPlayer target) {
         GameManager gameManager = GameManager.getInstance();
         

@@ -68,20 +68,20 @@ public class StockfishIntegration {
             System.out.println("[GUIChess] Using Stockfish from system property: " + stockfishPath);
             return;
         }
-        
+
         Path dataDir = Paths.get("config", "guichess");
         Files.createDirectories(dataDir);
-        
+
         StockfishInstaller installer = new StockfishInstaller(dataDir);
-        
+
         try {
             installer.installIfNeededAsync().get(60, TimeUnit.SECONDS);
-            
+
             Path executablePath = installer.getExecutablePath();
             System.out.println("[GUIChess] Checking executable at: " + executablePath);
             System.out.println("[GUIChess] File exists: " + Files.exists(executablePath));
             System.out.println("[GUIChess] File is executable: " + Files.isExecutable(executablePath));
-            
+
             if (Files.exists(executablePath)) {
                 if (Files.isExecutable(executablePath)) {
                     this.stockfishPath = executablePath.toString();
@@ -194,7 +194,7 @@ public class StockfishIntegration {
             }
         }, executor);
     }
-    
+
     public void analyzePosition(String fen, Consumer<AnalysisResult> callback) {
         analyzePosition(fen).thenAccept(callback).exceptionally(throwable -> {
             callback.accept(new AnalysisResult("Error: " + throwable.getMessage()));
@@ -216,7 +216,7 @@ public class StockfishIntegration {
             return hint;
         });
     }
-    
+
     public void requestHint(String fen, Consumer<String> callback) {
         requestHint(fen).thenAccept(callback).exceptionally(throwable -> {
             callback.accept("Error: " + throwable.getMessage());
@@ -228,7 +228,7 @@ public class StockfishIntegration {
         if (!isInitialized) {
             return initializationFuture.thenCompose(v -> evaluatePosition(fen));
         }
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 sendCommand("position fen " + fen);
@@ -252,7 +252,7 @@ public class StockfishIntegration {
             }
         }, executor);
     }
-    
+
     public void evaluatePosition(String fen, Consumer<EvaluationResult> callback) {
         evaluatePosition(fen).thenAccept(callback).exceptionally(throwable -> {
             callback.accept(new EvaluationResult("Error: " + throwable.getMessage()));
@@ -379,7 +379,7 @@ public class StockfishIntegration {
     public boolean isAvailable() {
         return isInitialized && isReady;
     }
-    
+
     public CompletableFuture<Boolean> waitUntilReady() {
         return initializationFuture.thenApply(v -> isAvailable());
     }
@@ -395,7 +395,7 @@ public class StockfishIntegration {
     public void setAnalysisTime(int milliseconds) {
         this.analysisTime = Math.max(100, milliseconds);
     }
-    
+
     public void setSkillLevel(int level) {
         this.skillLevel = Math.max(-20, Math.min(20, level));
         if (isReady) {
@@ -467,4 +467,3 @@ public class StockfishIntegration {
         }
     }
 }
-

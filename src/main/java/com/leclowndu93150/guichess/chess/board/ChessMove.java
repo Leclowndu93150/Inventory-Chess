@@ -2,6 +2,10 @@ package com.leclowndu93150.guichess.chess.board;
 
 import com.leclowndu93150.guichess.chess.pieces.PieceType;
 
+/**
+ * Represents a chess move with all its properties and metadata.
+ * Immutable data structure containing move details and game state flags.
+ */
 public class ChessMove {
     public final ChessPosition from;
     public final ChessPosition to;

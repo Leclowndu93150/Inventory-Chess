@@ -2,6 +2,14 @@ package com.leclowndu93150.guichess.chess.pieces;
 
 import net.minecraft.network.chat.Component;
 
+/**
+ * Represents all chess pieces with their visual and game properties.
+ * Each piece has associated model data for rendering and display components.
+ * 
+ * Model data ranges:
+ * - White pieces: 1000-1005
+ * - Black pieces: 1010-1015
+ */
 public enum ChessPiece {
     // White pieces (1000-1005)
     WHITE_KING(1000, "white_king", "♔", Component.literal("§fWhite King")),
@@ -43,6 +51,9 @@ public enum ChessPiece {
         return PieceType.values()[this.ordinal() % 6];
     }
 
+    /**
+     * Creates a chess piece from color and type.
+     */
     public static ChessPiece fromColorAndType(PieceColor color, PieceType type) {
         int offset = color == PieceColor.WHITE ? 0 : 6;
         return values()[offset + type.ordinal()];

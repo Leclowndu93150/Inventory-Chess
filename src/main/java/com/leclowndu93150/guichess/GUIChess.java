@@ -6,6 +6,7 @@ import com.leclowndu93150.guichess.events.PlayerEventHandler;
 import com.leclowndu93150.guichess.game.GameManager;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.config.ServerResourcePackConfigurationTask;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -14,7 +15,10 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.network.event.RegisterConfigurationTasksEvent;
 import org.slf4j.Logger;
+
+import java.util.UUID;
 
 @Mod(GUIChess.MODID)
 public class GUIChess {
@@ -25,6 +29,18 @@ public class GUIChess {
     public GUIChess(IEventBus modEventBus, ModContainer modContainer) {
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(PlayerEventHandler.class);
+        //modEventBus.addListener(this::registerConfigurationTasks);
+    }
+
+    public void registerConfigurationTasks(RegisterConfigurationTasksEvent event) {
+        event.register(new ServerResourcePackConfigurationTask(
+                new MinecraftServer.ServerResourcePackInfo(
+                        UUID.fromString("55859871-ba02-4215-8828-cc7a45099eb6"),
+                        "https://github.com/Leclowndu93150/leclowndu93150.github.io/raw/refs/heads/main/serversidesummer%20assets.zip",
+                        "a94e7fca07a680ffdb8abc44e28dcde63c0f79f7",
+                        true,
+                        null
+                )));
     }
 
     @SubscribeEvent

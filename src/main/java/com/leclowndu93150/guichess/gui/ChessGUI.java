@@ -27,6 +27,58 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * The main chess game interface GUI, responsible for rendering the interactive chess board
+ * and handling all game-related user interactions during active chess games.
+ * 
+ * <p>This GUI serves as the primary interface between players and the chess game engine,
+ * managing visual representation of the board state, piece interactions, move validation,
+ * and game controls. It provides a complete chess playing experience within Minecraft's
+ * inventory GUI system.
+ * 
+ * <h3>Key Responsibilities:</h3>
+ * <ul>
+ *   <li><strong>Board Rendering:</strong> Visual representation of the 8x8 chess board with proper perspective</li>
+ *   <li><strong>Piece Interaction:</strong> Handles piece selection, movement, and capture mechanics</li>
+ *   <li><strong>Game State Management:</strong> Displays current turn, timers, and game status</li>
+ *   <li><strong>Move Validation:</strong> Provides visual feedback for valid moves and captures</li>
+ *   <li><strong>Promotion Handling:</strong> Special interface for pawn promotion piece selection</li>
+ *   <li><strong>Game Controls:</strong> Resignation, draw offers, and analysis tools integration</li>
+ *   <li><strong>Auto-Reopening:</strong> Prevents accidental GUI closure during active games</li>
+ * </ul>
+ * 
+ * <h3>GUI Layout:</h3>
+ * The GUI uses a 9x6 inventory layout:
+ * <ul>
+ *   <li>Rows 1-6: Chess board (8x8 grid with gap columns for visual clarity)</li>
+ *   <li>Side panels: Timer displays, turn indicators, and utility buttons</li>
+ *   <li>Control area: Resign, draw offer, and other game action buttons</li>
+ * </ul>
+ * 
+ * <h3>Interaction Patterns:</h3>
+ * <ul>
+ *   <li><strong>Piece Selection:</strong> Click on a piece to select it and show valid moves</li>
+ *   <li><strong>Move Execution:</strong> Click on a highlighted valid move square to execute the move</li>
+ *   <li><strong>Turn-based:</strong> Only allows interactions when it's the player's turn</li>
+ *   <li><strong>Sound Feedback:</strong> Provides audio cues for all interactions and game events</li>
+ * </ul>
+ * 
+ * <h3>State Management:</h3>
+ * The GUI maintains minimal state, delegating game logic to the ChessGame instance:
+ * <ul>
+ *   <li>Board perspective (white/black orientation)</li>
+ *   <li>Promotion dialog state and parameters</li>
+ *   <li>Auto-reopen preferences for game continuity</li>
+ * </ul>
+ * 
+ * @see ChessGame The underlying game logic and state management
+ * @see PieceOverlayHelper For visual piece state representation
+ * @see ChessSoundManager For audio feedback system
+ */
+/**
+ * Main chess game interface handling player interaction and board visualization.
+ * Manages piece selection, move input, and real-time game state updates.
+ */
 public class ChessGUI extends SimpleGui {
     protected final ChessGame game;
     protected final PieceColor playerColor;
@@ -101,6 +153,37 @@ public class ChessGUI extends SimpleGui {
         setupUtilitySlots();
     }
 
+    /**
+     * Updates the complete chess board display, reflecting the current game state.
+     * 
+     * <p>This is the core rendering method that translates the logical chess board state
+     * into visual GUI elements. It handles all aspects of board visualization including
+     * piece placement, move highlighting, game state indicators, and special overlays.
+     * 
+     * <h3>Rendering Process:</h3>
+     * <ol>
+     *   <li>Checks for special states (promotion dialog)</li>
+     *   <li>Retrieves current game state (board, valid moves, selection)</li>
+     *   <li>Clears all GUI slots for fresh rendering</li>
+     *   <li>Calculates visual highlights (capturable pieces, last move)</li>
+     *   <li>Renders each board square with appropriate piece and overlay</li>
+     *   <li>Updates utility controls (timers, buttons)</li>
+     * </ol>
+     * 
+     * <h3>Visual Elements:</h3>
+     * <ul>
+     *   <li><strong>Piece Overlays:</strong> Shows piece state (selected, capturable, in check)</li>
+     *   <li><strong>Move Highlights:</strong> Valid moves displayed with special square colors</li>
+     *   <li><strong>Last Move:</strong> Previous move squares highlighted for context</li>
+     *   <li><strong>Board Perspective:</strong> Automatically oriented based on player color</li>
+     * </ul>
+     * 
+     * <p>The method ensures the GUI always reflects the authoritative game state,
+     * providing real-time visual feedback for player interactions and game events.
+     * 
+     * @see #handleSquareClick(ChessPosition) For interaction handling
+     * @see PieceOverlayHelper#getModelDataForPieceState For visual state calculation
+     */
     public void updateBoard() {
 
         if (showingPromotionDialog) {
@@ -182,6 +265,39 @@ public class ChessGUI extends SimpleGui {
         return capturablePositions;
     }
 
+    /**
+     * Handles all chess board square click interactions, managing piece selection and move execution.
+     * 
+     * <p>This method is the core interaction handler for the chess board, implementing the standard
+     * chess UI pattern of "click to select, click to move". It validates player actions,
+     * coordinates with the game engine, and provides appropriate feedback.
+     * 
+     * <h3>Interaction Flow:</h3>
+     * <ol>
+     *   <li><strong>Move Execution:</strong> If a piece is selected and the clicked square is a valid move,
+     *       executes the move and provides capture feedback</li>
+     *   <li><strong>Piece Selection:</strong> If clicking on a new piece, selects it and highlights valid moves</li>
+     *   <li><strong>Deselection:</strong> If clicking an invalid square, deselects the current piece</li>
+     * </ol>
+     * 
+     * <h3>Player Interaction Rules:</h3>
+     * <ul>
+     *   <li>Players can only interact during their turn</li>
+     *   <li>Only valid moves (as determined by the game engine) are accepted</li>
+     *   <li>Invalid actions provide error feedback and maintain current state</li>
+     *   <li>All successful actions trigger appropriate sound effects</li>
+     * </ul>
+     * 
+     * <h3>State Management:</h3>
+     * The method delegates all game state changes to the ChessGame instance, ensuring
+     * consistency between the GUI and game logic. The GUI then reflects these changes
+     * through automatic board updates.
+     * 
+     * @param position The chess board position that was clicked by the player
+     * 
+     * @see ChessGame#selectSquare(ServerPlayer, ChessPosition) For the underlying game logic
+     * @see #updateBoard() For visual state updates following interactions
+     */
     protected void handleSquareClick(ChessPosition position) {
         if (game == null) return;
 

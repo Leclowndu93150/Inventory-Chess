@@ -20,6 +20,68 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Advanced challenge creation interface implementing a step-by-step wizard flow for comprehensive game setup.
+ * 
+ * <p>This GUI provides a more sophisticated challenge creation experience compared to the basic configuration
+ * interface, implementing a multi-step wizard that guides players through comprehensive game setup including
+ * advanced features like item betting and detailed bot configuration.
+ * 
+ * <h3>Wizard Flow Steps:</h3>
+ * <ol>
+ *   <li><strong>OPPONENT_TYPE:</strong> Choose between human players and AI bots</li>
+ *   <li><strong>BOT_CONFIG:</strong> Configure bot difficulty (ELO) and hint settings (bot games only)</li>
+ *   <li><strong>HUMAN_SELECT:</strong> Select specific human opponent from available players</li>
+ *   <li><strong>TIME_CONTROL:</strong> Choose from standard chess time control formats</li>
+ *   <li><strong>BET_CHOICE:</strong> Decide whether to enable item betting (human games only)</li>
+ *   <li><strong>BET_ITEMS:</strong> Select specific items to wager if betting is enabled</li>
+ *   <li><strong>SIDE_SELECT:</strong> Choose to play as White, Black, or random assignment</li>
+ *   <li><strong>CONFIRM:</strong> Review all settings and send the challenge</li>
+ * </ol>
+ * 
+ * <h3>Key Features:</h3>
+ * <ul>
+ *   <li><strong>Wizard Navigation:</strong> Forward/backward navigation with validation</li>
+ *   <li><strong>Dynamic Flow:</strong> Step progression adapts based on previous selections</li>
+ *   <li><strong>Item Integration:</strong> Direct inventory interaction for betting system</li>
+ *   <li><strong>Real-time Validation:</strong> Prevents invalid configurations at each step</li>
+ *   <li><strong>State Preservation:</strong> Maintains configuration across navigation</li>
+ *   <li><strong>Error Recovery:</strong> Returns items if GUI is closed unexpectedly</li>
+ * </ul>
+ * 
+ * <h3>Advanced Configuration Options:</h3>
+ * <ul>
+ *   <li><strong>Bot ELO Scaling:</strong> Granular difficulty adjustment (500-3000 ELO)</li>
+ *   <li><strong>Hint Limits:</strong> Configurable analysis assistance (0-10 hints)</li>
+ *   <li><strong>Item Betting:</strong> Up to 6 items can be wagered per challenge</li>
+ *   <li><strong>Visual Feedback:</strong> Real-time display of selected items and configuration</li>
+ * </ul>
+ * 
+ * <h3>State Management:</h3>
+ * The GUI maintains comprehensive state throughout the wizard flow:
+ * <ul>
+ *   <li>All configuration options are preserved during navigation</li>
+ *   <li>Invalid steps prevent progression with clear feedback</li>
+ *   <li>Items are safely managed with automatic return on cancellation</li>
+ *   <li>Configuration validation occurs at each step transition</li>
+ * </ul>
+ * 
+ * <h3>Integration Points:</h3>
+ * <ul>
+ *   <li><strong>GameManager:</strong> Creates bot games and human challenges</li>
+ *   <li><strong>Inventory System:</strong> Direct interaction for item betting</li>
+ *   <li><strong>ChessChallenge:</strong> Creates properly configured challenge objects</li>
+ *   <li><strong>Player Management:</strong> Real-time availability checking</li>
+ * </ul>
+ * 
+ * <p>This interface is designed for players who want comprehensive control over their
+ * challenge configuration, providing access to all available game options through
+ * an intuitive step-by-step process.
+ * 
+ * @see ChallengeConfigGUI For the simplified configuration interface
+ * @see ChessChallenge For the challenge data structure created by this wizard
+ * @see GameManager For challenge and game creation integration
+ */
 public class ChallengeFlowGUI extends SimpleGui {
     private enum Step {
         OPPONENT_TYPE,      // Bot or Human

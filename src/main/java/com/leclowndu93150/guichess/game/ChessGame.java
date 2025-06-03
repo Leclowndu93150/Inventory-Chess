@@ -19,6 +19,24 @@ import net.minecraft.nbt.StringTag;
 
 import java.util.*;
 
+/**
+ * Manages a chess game session between two players with timing, GUI updates, and game state.
+ * 
+ * Core responsibilities:
+ * - Move validation and execution
+ * - Time control management
+ * - Player interaction (selection, promotion, offers)
+ * - GUI synchronization
+ * - Game ending and ELO calculation
+ * - Analysis mode support
+ * 
+ * Supports:
+ * - Human vs Human games
+ * - Hint system
+ * - Draw offers and resignation
+ * - Betting system
+ * - Spectator mode
+ */
 public class ChessGame {
     private final UUID gameId;
     private final ServerPlayer whitePlayer;
@@ -76,6 +94,16 @@ public class ChessGame {
         }
     }
 
+    /**
+     * Attempts to make a move for the specified player.
+     * Validates the move, updates timers, and checks for game ending conditions.
+     * 
+     * @param player the player making the move
+     * @param from starting position
+     * @param to ending position  
+     * @param promotion piece type for pawn promotion (null if not promoting)
+     * @return true if move was made successfully
+     */
     public boolean makeMove(ServerPlayer player, ChessPosition from, ChessPosition to, PieceType promotion) {
         if (!gameActive || !isPlayerTurn(player)) return false;
 
@@ -294,6 +322,14 @@ public class ChessGame {
         return new double[]{newWhiteELO, newBlackELO};
     }
 
+    /**
+     * Handles square selection for piece movement.
+     * Manages per-player selection state and move execution.
+     * 
+     * @param player the player selecting a square
+     * @param position the position being selected
+     * @return true if selection was processed
+     */
     public boolean selectSquare(ServerPlayer player, ChessPosition position) {
         if (!gameActive || (!isPlayerTurn(player) && !analysisMode)) return false;
 
