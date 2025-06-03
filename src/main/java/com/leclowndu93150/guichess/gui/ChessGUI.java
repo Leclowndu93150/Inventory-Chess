@@ -58,7 +58,7 @@ public class ChessGUI extends SimpleGui {
                 }
             }
         }
-        setTitle(Component.literal("§0Chess Game against " + opponentName));
+        setTitle(Component.literal("§0Chess vs " + opponentName));
         setupInitialGUI();
     }
 

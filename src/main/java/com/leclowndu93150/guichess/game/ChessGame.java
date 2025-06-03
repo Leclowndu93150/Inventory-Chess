@@ -44,7 +44,7 @@ public class ChessGame {
 
     private boolean analysisMode = false;
     private Map<String, Object> analysisData = new HashMap<>();
-    private boolean timerStarted = false;
+    protected boolean timerStarted = false;
     
     // Hint system
     private int hintsAllowed = 0;
@@ -133,7 +133,7 @@ public class ChessGame {
         return false;
     }
 
-    private void updateTimersAfterMove() {
+    protected void updateTimersAfterMove() {
         if (timeControl.initialSeconds == -1) return; // No increment for unlimited time
 
         if (board.getCurrentTurn() == PieceColor.BLACK) {

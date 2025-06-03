@@ -104,6 +104,14 @@ public class ChessBotGame extends ChessGame {
                                 GameManager.getInstance().getServer().execute(() -> {
                                     if (isValidBotMove(move)) {
                                         if (board.makeMove(move)) {
+                                            // Update timers after move (like parent class does)
+                                            updateTimersAfterMove();
+                                            
+                                            // Start timer after first move (like parent class does)
+                                            if (!timerStarted && board.getCurrentTurn() == PieceColor.BLACK) {
+                                                timerStarted = true;
+                                            }
+                                            
                                             // Play move sounds for the human player
                                             ServerPlayer human = getHumanPlayer();
                                             if (human != null) {
