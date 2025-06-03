@@ -57,10 +57,6 @@ public class GUIChess {
     }
 
 
-//    Add Stockfish support
-//
-//    Being able to bet items also through a GUI
-//
 //    Elo will be in a saved data format along with the match history, with the wins, loses etc
 //
 //    Add a new set of pieces overlay for captured pieces which will be in the hotbar or on top probably

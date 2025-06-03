@@ -24,6 +24,7 @@ public class ChallengeFlowGUI extends SimpleGui {
         OPPONENT_TYPE,      // Bot or Human
         BOT_CONFIG,        // Bot ELO/hints configuration
         HUMAN_SELECT,      // Select which player
+        TIME_CONTROL,      // Choose time control
         BET_CHOICE,        // Choose whether to bet items
         BET_ITEMS,         // Select items to bet
         SIDE_SELECT,       // Choose black/white/random
@@ -61,6 +62,7 @@ public class ChallengeFlowGUI extends SimpleGui {
             case OPPONENT_TYPE -> setupOpponentTypeScreen();
             case BOT_CONFIG -> setupBotConfigScreen();
             case HUMAN_SELECT -> setupHumanSelectScreen();
+            case TIME_CONTROL -> setupTimeControlScreen();
             case BET_CHOICE -> setupBetChoiceScreen();
             case BET_ITEMS -> setupBetItemsScreen();
             case SIDE_SELECT -> setupSideSelectScreen();
@@ -181,6 +183,31 @@ public class ChallengeFlowGUI extends SimpleGui {
                     .glow(selected)
                     .setCallback((index, type, action, gui) -> {
                         humanOpponent = p;
+                        ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SELECT);
+                        updateDisplay();
+                    }));
+            slot++;
+        }
+    }
+    
+    private void setupTimeControlScreen() {
+        setTitle(Component.literal("§0Choose Time Control"));
+        
+        TimeControl[] timeControls = TimeControl.values();
+        int slot = 0;
+        
+        for (TimeControl tc : timeControls) {
+            if (slot >= 18) break; // Only show first 18 options
+            
+            boolean selected = tc.equals(timeControl);
+            setSlot(slot, new GuiElementBuilder(Items.CLOCK)
+                    .setName(Component.literal((selected ? "§a" : "§f") + tc.displayName))
+                    .addLoreLine(Component.literal("§7" + tc.name()))
+                    .addLoreLine(Component.literal(""))
+                    .addLoreLine(Component.literal("§eClick to select"))
+                    .glow(selected)
+                    .setCallback((index, type, action, gui) -> {
+                        timeControl = tc;
                         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SELECT);
                         updateDisplay();
                     }));
@@ -372,6 +399,7 @@ public class ChallengeFlowGUI extends SimpleGui {
             case OPPONENT_TYPE -> true; // Always can proceed after choosing type
             case BOT_CONFIG -> true; // Bot config has defaults
             case HUMAN_SELECT -> humanOpponent != null;
+            case TIME_CONTROL -> true; // Default time control is selected
             case BET_CHOICE -> true; // Choice is made either way
             case BET_ITEMS -> !wantsToBet || !betItems.isEmpty();
             case SIDE_SELECT -> true; // Random is a valid choice
@@ -382,8 +410,9 @@ public class ChallengeFlowGUI extends SimpleGui {
     private void goToNextStep() {
         currentStep = switch (currentStep) {
             case OPPONENT_TYPE -> isBot ? Step.BOT_CONFIG : Step.HUMAN_SELECT;
-            case BOT_CONFIG -> Step.SIDE_SELECT;
-            case HUMAN_SELECT -> Step.BET_CHOICE;
+            case BOT_CONFIG -> Step.TIME_CONTROL;
+            case HUMAN_SELECT -> Step.TIME_CONTROL;
+            case TIME_CONTROL -> isBot ? Step.SIDE_SELECT : Step.BET_CHOICE;
             case BET_CHOICE -> wantsToBet ? Step.BET_ITEMS : Step.SIDE_SELECT;
             case BET_ITEMS -> Step.SIDE_SELECT;
             case SIDE_SELECT -> Step.CONFIRM;
@@ -397,11 +426,12 @@ public class ChallengeFlowGUI extends SimpleGui {
             case OPPONENT_TYPE -> Step.OPPONENT_TYPE; // Can't go back from first
             case BOT_CONFIG -> Step.OPPONENT_TYPE;
             case HUMAN_SELECT -> Step.OPPONENT_TYPE;
-            case BET_CHOICE -> Step.HUMAN_SELECT;
+            case TIME_CONTROL -> isBot ? Step.BOT_CONFIG : Step.HUMAN_SELECT;
+            case BET_CHOICE -> Step.TIME_CONTROL;
             case BET_ITEMS -> Step.BET_CHOICE;
             case SIDE_SELECT -> {
                 if (isBot) {
-                    yield Step.BOT_CONFIG;
+                    yield Step.TIME_CONTROL;
                 } else if (wantsToBet) {
                     yield Step.BET_ITEMS;
                 } else {
