@@ -19,6 +19,7 @@ import com.leclowndu93150.guichess.util.PieceOverlayHelper;
 import com.leclowndu93150.guichess.util.TimeHelper;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
@@ -445,25 +446,30 @@ public class ChessGUI extends SimpleGui {
         updateResignButtons();
     }
 
-    protected void updateTimerDisplays() {
+    public void updateTimerDisplays() {
         if (game == null) return;
 
-        // Get clock items with proper model data
+        int playerTimerSlot = 53;
+        int opponentTimerSlot = 26;
+        
+        // Use regular Minecraft clocks with time in the name
         ItemStack whiteClockItem = TimeHelper.getClockItem(game.getWhiteTimeLeft());
         ItemStack blackClockItem = TimeHelper.getClockItem(game.getBlackTimeLeft());
         
         GuiElementBuilder whiteTimer = GuiElementBuilder.from(whiteClockItem)
-                .setName(Component.literal("§fWhite: " + game.formatTime(game.getWhiteTimeLeft())));
+                .setName(Component.literal("§fWhite: " + game.formatTime(game.getWhiteTimeLeft())))
+                .hideDefaultTooltip();
 
         GuiElementBuilder blackTimer = GuiElementBuilder.from(blackClockItem)
-                .setName(Component.literal("§8Black: " + game.formatTime(game.getBlackTimeLeft())));
+                .setName(Component.literal("§8Black: " + game.formatTime(game.getBlackTimeLeft())))
+                .hideDefaultTooltip();
 
         if (playerColor == PieceColor.WHITE) {
-            setSlot(53, whiteTimer);
-            setSlot(26, blackTimer);
+            setSlot(playerTimerSlot, whiteTimer);
+            setSlot(opponentTimerSlot, blackTimer);
         } else {
-            setSlot(53, blackTimer);
-            setSlot(26, whiteTimer);
+            setSlot(playerTimerSlot, blackTimer);
+            setSlot(opponentTimerSlot, whiteTimer);
         }
     }
 

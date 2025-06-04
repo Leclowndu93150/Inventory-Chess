@@ -4,6 +4,7 @@ import com.leclowndu93150.guichess.chess.board.BoardSquare;
 import com.leclowndu93150.guichess.chess.pieces.ChessPiece;
 import com.leclowndu93150.guichess.chess.util.GameUtility;
 import com.leclowndu93150.guichess.util.PieceOverlayHelper;
+import com.leclowndu93150.guichess.util.TimeHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -25,13 +26,34 @@ public class ChessItemTooltipHandler {
     @SubscribeEvent
     public static void onChessItemTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
-        if (stack.isEmpty() || !stack.is(Items.GRAY_DYE)) return;
+        if (stack.isEmpty()) return;
+        
+        // Check if this is a clock item (any of the dye items used for clocks)
+        boolean isClockItem = false;
+        for (net.minecraft.world.item.Item clockItem : TimeHelper.getClockItems()) {
+            if (stack.is(clockItem)) {
+                isClockItem = true;
+                break;
+            }
+        }
+        
+        // Check if this is a chess item (gray dye)
+        if (!stack.is(Items.GRAY_DYE) && !isClockItem) return;
 
         CustomModelData cmd = stack.get(DataComponents.CUSTOM_MODEL_DATA);
         if (cmd == null) return;
 
         int modelData = cmd.value();
         List<Component> tooltip = event.getToolTip();
+        
+        // Check for clock items first
+        if (isClockItem) {
+            String clockInfo = TimeHelper.getClockDebugInfo(stack);
+            if (clockInfo != null) {
+                addClockTooltip(tooltip, clockInfo, modelData);
+                return;
+            }
+        }
 
         ChessPiece piece = getChessPieceByModelData(modelData);
         if (piece != null) {
@@ -63,6 +85,17 @@ public class ChessItemTooltipHandler {
                 tooltip.add(Component.literal("§6Unknown Chess Item - Model Data: §f" + modelData));
                 addDataComponentInfo(tooltip, stack);
             }
+        }
+    }
+
+    private static void addClockTooltip(List<Component> tooltip, String clockInfo, int modelData) {
+        tooltip.add(Component.empty());
+        tooltip.add(Component.literal("§6§lDigital Clock"));
+        tooltip.add(Component.literal(clockInfo));
+        
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.options.advancedItemTooltips) {
+            tooltip.add(Component.literal("§8Clock system using layered textures"));
         }
     }
 

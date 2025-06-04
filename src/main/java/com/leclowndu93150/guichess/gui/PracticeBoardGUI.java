@@ -303,7 +303,7 @@ public class PracticeBoardGUI extends ChessGUI {
     }
 
     @Override
-    protected void updateTimerDisplays() {
+    public void updateTimerDisplays() {
     }
 
     @Override

@@ -4,13 +4,21 @@ import com.leclowndu93150.guichess.command.ChessCommands;
 import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.events.PlayerEventHandler;
 import com.leclowndu93150.guichess.game.GameManager;
+import com.leclowndu93150.guichess.util.TimeHelper;
 import com.mojang.logging.LogUtils;
+import net.minecraft.client.renderer.ItemModelShaper;
+import net.minecraft.client.resources.model.ModelBaker;
+import net.minecraft.client.resources.model.ModelBakery;
+import net.minecraft.client.resources.model.UnbakedModel;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.config.ServerResourcePackConfigurationTask;
+import net.minecraft.world.item.component.CustomModelData;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.model.generators.ItemModelBuilder;
+import net.neoforged.neoforge.client.model.generators.ItemModelProvider;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
@@ -20,16 +28,25 @@ import org.slf4j.Logger;
 
 import java.util.UUID;
 
+/**
+ * Main mod class for GUIChess - a chess implementation for Minecraft.
+ * Provides chess gameplay with GUI interfaces, bot opponents, and spectator support.
+ */
 @Mod(GUIChess.MODID)
 public class GUIChess {
 
     public static final String MODID = "guichess";
     private static final Logger LOGGER = LogUtils.getLogger();
 
+    /**
+     * Initializes the GUIChess mod and registers event handlers.
+     * 
+     * @param modEventBus the mod event bus
+     * @param modContainer the mod container
+     */
     public GUIChess(IEventBus modEventBus, ModContainer modContainer) {
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(PlayerEventHandler.class);
-        //modEventBus.addListener(this::registerConfigurationTasks);
     }
 
     public void registerConfigurationTasks(RegisterConfigurationTasksEvent event) {
@@ -43,13 +60,15 @@ public class GUIChess {
                 )));
     }
 
+    /**
+     * Handles server startup - initializes the game manager and chess engine.
+     */
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         MinecraftServer server = event.getServer();
         GameManager.getInstance().initialize(server);
         LOGGER.info("GUIChess initialized with server");
         
-        // Initialize Stockfish asynchronously
         StockfishIntegration.getInstance().waitUntilReady().thenAccept(ready -> {
             if (ready) {
                 LOGGER.info("Stockfish engine initialized successfully");
@@ -59,6 +78,9 @@ public class GUIChess {
         });
     }
 
+    /**
+     * Handles server shutdown - cleans up the game manager and chess engine.
+     */
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
         GameManager.getInstance().shutdown();
@@ -66,11 +88,15 @@ public class GUIChess {
         LOGGER.info("GUIChess shutdown complete");
     }
 
+    /**
+     * Registers chess commands when the server starts.
+     */
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         ChessCommands.registerCommands(event);
         LOGGER.info("Chess commands registered");
     }
+
 
 
 //    Elo will be in a saved data format along with the match history, with the wins, loses etc

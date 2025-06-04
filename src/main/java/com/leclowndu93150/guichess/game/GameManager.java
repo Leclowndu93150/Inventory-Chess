@@ -723,10 +723,40 @@ public class GameManager {
                 checkTimeWarnings(game);
 
                 game.tickTimer();
+                
+                // Update timer displays in GUIs
+                updateGameGUITimers(game);
             }
         } catch (Exception e) {
             System.err.println("[GUIChess] Error during game ticking: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    
+    private void updateGameGUITimers(ChessGame game) {
+        // Update player GUIs
+        if (game.getWhitePlayer() != null) {
+            ChessGUI whiteGUI = playerGUIs.get(game.getWhitePlayer().getUUID());
+            if (whiteGUI != null && whiteGUI.isOpen()) {
+                whiteGUI.updateTimerDisplays();
+            }
+        }
+        
+        if (game.getBlackPlayer() != null) {
+            ChessGUI blackGUI = playerGUIs.get(game.getBlackPlayer().getUUID());
+            if (blackGUI != null && blackGUI.isOpen()) {
+                blackGUI.updateTimerDisplays();
+            }
+        }
+        
+        // Update spectator GUIs
+        List<SpectatorGUI> specGuis = spectatorGUIs.get(game.getGameId());
+        if (specGuis != null) {
+            for (SpectatorGUI gui : specGuis) {
+                if (gui.isOpen()) {
+                    gui.updateTimerDisplays();
+                }
+            }
         }
     }
 

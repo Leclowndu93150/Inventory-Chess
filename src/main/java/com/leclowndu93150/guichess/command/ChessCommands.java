@@ -36,6 +36,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Defines all chess-related commands for player interaction with the chess system.
+ * Includes game management, challenges, spectating, and administrative functions.
+ */
 @EventBusSubscriber
 public class ChessCommands {
 
@@ -53,6 +57,11 @@ public class ChessCommands {
             );
 
 
+    /**
+     * Registers all chess commands with the command dispatcher.
+     * 
+     * @param event the command registration event
+     */
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();

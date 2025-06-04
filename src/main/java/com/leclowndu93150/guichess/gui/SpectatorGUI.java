@@ -90,7 +90,7 @@ public class SpectatorGUI extends ChessGUI {
     }
 
     private void updateSpectatorTimerDisplays() {
-        // Get clock items with proper model data
+        // Use regular Minecraft clocks with time in the name
         ItemStack whiteClockItem = TimeHelper.getClockItem(game.getWhiteTimeLeft());
         ItemStack blackClockItem = TimeHelper.getClockItem(game.getBlackTimeLeft());
         
@@ -116,7 +116,7 @@ public class SpectatorGUI extends ChessGUI {
     }
 
     @Override
-    protected void updateTimerDisplays() {
+    public void updateTimerDisplays() {
         updateSpectatorTimerDisplays();
     }
 

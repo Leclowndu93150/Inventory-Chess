@@ -10,6 +10,10 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Integration layer for the Stockfish chess engine, providing analysis and move suggestions.
+ * Manages the lifecycle of the external Stockfish process and handles UCI communication.
+ */
 public class StockfishIntegration {
     private static StockfishIntegration instance;
     private final ExecutorService executor = Executors.newFixedThreadPool(2);

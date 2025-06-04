@@ -10,101 +10,115 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Generates positioned digit textures for the clock overlay system.
- * Instead of generating thousands of clock combinations, we generate 40 textures:
- * 10 digits (0-9) × 4 positions = 40 textures
+ * Generates composite clock textures with digits overlaid on the base clock.
+ * Creates 181 textures for times from 00:00 to 30:00 in 10-second intervals.
  */
 public class ClockTextureGenerator {
     
-    // Item texture size (Minecraft standard)
     private static final int TEXTURE_SIZE = 16;
-    
-    // Clock dimensions
+    private static final int TEXTURE_WIDTH = 32;
+    private static final int TEXTURE_HEIGHT = 32;
     private static final int CLOCK_WIDTH = 31;
     private static final int CLOCK_HEIGHT = 19;
     
-    // Digit positions on the clock (x, y coordinates for top-left of each digit)
-    private static final int[][] DIGIT_POSITIONS = {
+    private static final int CLOCK_OFFSET_X = (TEXTURE_WIDTH - CLOCK_WIDTH) / 2;
+    private static final int CLOCK_OFFSET_Y = (TEXTURE_HEIGHT - CLOCK_HEIGHT) / 2;
+    
+    /** Digit positions on the clock face: minute tens, minute ones, second tens, second ones */
+    private static final int[][] BASE_DIGIT_POSITIONS = {
         {5, 6},   // Position 1: First digit (minute tens) - 5:6 to 8:12
         {10, 6},  // Position 2: Second digit (minute ones) - 10:6 to 13:12
         {17, 6},  // Position 3: Third digit (second tens) - 17:6 to 20:12
         {22, 6}   // Position 4: Fourth digit (second ones) - 22:6 to 25:12
     };
     
-    // Number dimensions - 4 pixels wide, 7 pixels high
+    private static final int[][] DIGIT_POSITIONS = new int[4][2];
+    
+    static {
+        for (int i = 0; i < 4; i++) {
+            DIGIT_POSITIONS[i][0] = BASE_DIGIT_POSITIONS[i][0] + CLOCK_OFFSET_X;
+            DIGIT_POSITIONS[i][1] = BASE_DIGIT_POSITIONS[i][1] + CLOCK_OFFSET_Y;
+        }
+    }
+    
     private static final int DIGIT_WIDTH = 4;
     private static final int DIGIT_HEIGHT = 7;
     
     /**
-     * Generates positioned digit textures for clock overlays.
-     * Uses existing digit textures from 0.png to 9.png and creates positioned versions.
+     * Generates composite clock textures for times in 10-second intervals.
+     * Creates textures by overlaying digit images onto a base clock texture.
+     * 
+     * @param baseDir the base resource directory containing texture assets
+     * @throws IOException if texture files cannot be read or written
      */
-    public static void generatePositionedDigitTextures(Path baseDir) throws IOException {
+    public static void generateCompositeClockTextures(Path baseDir) throws IOException {
         Path texturesDir = baseDir.resolve("assets/guichess/textures/item");
         Path numbersDir = texturesDir.resolve("numbers");
+        Path clockDir = texturesDir.resolve("clock");
+        Path outputDir = clockDir.resolve("times");
         
-        // Ensure the numbers directory exists
-        if (!Files.exists(numbersDir)) {
-            throw new IOException("Numbers directory not found: " + numbersDir + 
-                ". Please ensure digit textures 0.png through 9.png exist.");
+        Files.createDirectories(outputDir);
+        
+        Path clockPath = clockDir.resolve("clock.png");
+        if (!Files.exists(clockPath)) {
+            throw new IOException("Base clock texture not found: " + clockPath);
         }
         
-        // For each digit (0-9)
-        for (int digit = 0; digit <= 9; digit++) {
-            // Load the existing digit texture
-            Path digitPath = numbersDir.resolve(digit + ".png");
-            
+        BufferedImage baseClock = ImageIO.read(clockPath.toFile());
+        
+        BufferedImage[] digitTextures = new BufferedImage[10];
+        for (int i = 0; i < 10; i++) {
+            Path digitPath = numbersDir.resolve(i + ".png");
             if (!Files.exists(digitPath)) {
-                System.err.println("Warning: Digit texture not found: " + digitPath);
-                System.err.println("Creating placeholder for digit " + digit);
-                // Create placeholder and save it
-                BufferedImage placeholder = createPlaceholderDigit(digit);
-                ImageIO.write(placeholder, "PNG", digitPath.toFile());
+                System.err.println("Creating placeholder for digit " + i);
+                digitTextures[i] = createPlaceholderDigit(i);
+                ImageIO.write(digitTextures[i], "PNG", digitPath.toFile());
+            } else {
+                digitTextures[i] = ImageIO.read(digitPath.toFile());
             }
-            
-            BufferedImage digitTexture = ImageIO.read(digitPath.toFile());
-            
-            // Validate digit texture dimensions
-            if (digitTexture.getWidth() != DIGIT_WIDTH || digitTexture.getHeight() != DIGIT_HEIGHT) {
-                System.out.println("Note: Digit " + digit + " has dimensions " + 
-                    digitTexture.getWidth() + "x" + digitTexture.getHeight() + 
-                    ", expected " + DIGIT_WIDTH + "x" + DIGIT_HEIGHT);
-            }
-            
-            // For each position (1-4)
-            for (int pos = 0; pos < 4; pos++) {
-                // Create a transparent texture the size of the clock
-                BufferedImage positionedTexture = new BufferedImage(
-                    CLOCK_WIDTH, CLOCK_HEIGHT, BufferedImage.TYPE_INT_ARGB
-                );
+        }
+        int generated = 0;
+        for (int minutes = 0; minutes <= 30; minutes++) {
+            for (int seconds = 0; seconds < 60; seconds += 10) {
+                // Include 30:00 but nothing beyond
+                if (minutes == 30 && seconds > 0) continue;
                 
-                Graphics2D g = positionedTexture.createGraphics();
-                // Use nearest neighbor to preserve pixel art
+                String timeString = String.format("%02d_%02d", minutes, seconds);
+
+                BufferedImage clockImage = new BufferedImage(
+                    TEXTURE_WIDTH, TEXTURE_HEIGHT, BufferedImage.TYPE_INT_ARGB
+                );
+                Graphics2D g = clockImage.createGraphics();
                 g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, 
                                    RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
+                g.drawImage(baseClock, 0, 0, null);
+
+                int minuteTens = minutes / 10;
+                int minuteOnes = minutes % 10;
+                int secondTens = seconds / 10;
+                int secondOnes = seconds % 10;
                 
-                // Draw the digit at the correct position for this slot
-                int x = DIGIT_POSITIONS[pos][0];
-                int y = DIGIT_POSITIONS[pos][1];
+                int[] digits = {minuteTens, minuteOnes, secondTens, secondOnes};
                 
-                // Scale the digit to fit the target size if needed
-                g.drawImage(digitTexture, x, y, x + DIGIT_WIDTH, y + DIGIT_HEIGHT,
-                           0, 0, digitTexture.getWidth(), digitTexture.getHeight(), null);
+                for (int pos = 0; pos < 4; pos++) {
+                    BufferedImage digitTexture = digitTextures[digits[pos]];
+                    int x = DIGIT_POSITIONS[pos][0];
+                    int y = DIGIT_POSITIONS[pos][1];
+                    
+                    g.drawImage(digitTexture, x, y, x + DIGIT_WIDTH, y + DIGIT_HEIGHT,
+                               0, 0, digitTexture.getWidth(), digitTexture.getHeight(), null);
+                }
                 
                 g.dispose();
-                
-                // Save the positioned texture
-                String filename = digit + "_pos" + (pos + 1) + ".png";
-                Path outputPath = numbersDir.resolve(filename);
-                ImageIO.write(positionedTexture, "PNG", outputPath.toFile());
-                
-                System.out.println("Generated: " + filename + " (digit " + digit + 
-                    " at position " + (pos + 1) + ": " + x + "," + y + ")");
+
+                String filename = timeString + ".png";
+                ImageIO.write(clockImage, "PNG", outputDir.resolve(filename).toFile());
+                generated++;
             }
         }
         
-        System.out.println("Successfully generated positioned digit textures in: " + numbersDir);
-        System.out.println("Created 40 positioned textures from 10 base digit textures.");
+        System.out.println("Successfully generated " + generated + " composite clock textures in: " + outputDir);
     }
     
     /**
@@ -131,7 +145,13 @@ public class ClockTextureGenerator {
         try {
             // This would be run from the project root
             Path baseDir = Paths.get("src/main/resources");
-            generatePositionedDigitTextures(baseDir);
+            
+            // Generate composite time textures only
+            generateCompositeClockTextures(baseDir);
+            
+            System.out.println("\nGeneration complete!");
+            System.out.println("- 181 composite time textures in 10-second intervals (00:00 to 30:00)");
+            
         } catch (IOException e) {
             e.printStackTrace();
         }
