@@ -7,9 +7,11 @@ import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.game.ChessGame;
 import com.leclowndu93150.guichess.game.GameManager;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
+import com.leclowndu93150.guichess.util.TimeHelper;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 public class SpectatorGUI extends ChessGUI {
@@ -88,10 +90,14 @@ public class SpectatorGUI extends ChessGUI {
     }
 
     private void updateSpectatorTimerDisplays() {
-        GuiElementBuilder whiteTimer = new GuiElementBuilder(Items.CLOCK)
+        // Get clock items with proper model data
+        ItemStack whiteClockItem = TimeHelper.getClockItem(game.getWhiteTimeLeft());
+        ItemStack blackClockItem = TimeHelper.getClockItem(game.getBlackTimeLeft());
+        
+        GuiElementBuilder whiteTimer = GuiElementBuilder.from(whiteClockItem)
                 .setName(Component.literal("§fWhite: " + game.formatTime(game.getWhiteTimeLeft())));
 
-        GuiElementBuilder blackTimer = new GuiElementBuilder(Items.CLOCK)
+        GuiElementBuilder blackTimer = GuiElementBuilder.from(blackClockItem)
                 .setName(Component.literal("§8Black: " + game.formatTime(game.getBlackTimeLeft())));
 
         if (viewPerspective == PieceColor.WHITE) {

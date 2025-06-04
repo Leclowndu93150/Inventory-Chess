@@ -16,11 +16,13 @@ import com.leclowndu93150.guichess.game.GameManager;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
 import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
 import com.leclowndu93150.guichess.util.PieceOverlayHelper;
+import com.leclowndu93150.guichess.util.TimeHelper;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.HashSet;
@@ -446,10 +448,14 @@ public class ChessGUI extends SimpleGui {
     protected void updateTimerDisplays() {
         if (game == null) return;
 
-        GuiElementBuilder whiteTimer = new GuiElementBuilder(Items.CLOCK)
+        // Get clock items with proper model data
+        ItemStack whiteClockItem = TimeHelper.getClockItem(game.getWhiteTimeLeft());
+        ItemStack blackClockItem = TimeHelper.getClockItem(game.getBlackTimeLeft());
+        
+        GuiElementBuilder whiteTimer = GuiElementBuilder.from(whiteClockItem)
                 .setName(Component.literal("§fWhite: " + game.formatTime(game.getWhiteTimeLeft())));
 
-        GuiElementBuilder blackTimer = new GuiElementBuilder(Items.CLOCK)
+        GuiElementBuilder blackTimer = GuiElementBuilder.from(blackClockItem)
                 .setName(Component.literal("§8Black: " + game.formatTime(game.getBlackTimeLeft())));
 
         if (playerColor == PieceColor.WHITE) {
