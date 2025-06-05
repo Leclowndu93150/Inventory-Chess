@@ -5,8 +5,20 @@ import com.leclowndu93150.guichess.chess.pieces.PieceType;
 
 import java.util.Map;
 
+/**
+ * Helper class for managing piece overlay states and visual effects in the chess GUI.
+ * 
+ * <p>Handles the mapping between piece states (selected, capturable, in check, etc.)
+ * and their corresponding custom model data values for rendering in Minecraft.
+ * 
+ * @author GUIChess
+ * @since 1.0
+ */
 public class PieceOverlayHelper {
 
+    /**
+     * Visual overlay states for chess pieces based on their current game context.
+     */
     public enum OverlayType {
         NORMAL_LIGHT,
         NORMAL_DARK,

@@ -13,8 +13,21 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Enhanced move validation system with detailed move analysis and feedback.
+ * 
+ * <p>Provides comprehensive move validation with categorized feedback for illegal moves,
+ * move type detection, and game state validation. Used primarily for user input validation
+ * and providing educational feedback.
+ * 
+ * @author GUIChess
+ * @since 1.0
+ */
 public class EnhancedMoveValidator {
 
+    /**
+     * Result of a move validation operation containing success status, message, and move type.
+     */
     public static class MoveResult {
         public final boolean success;
         public final String message;

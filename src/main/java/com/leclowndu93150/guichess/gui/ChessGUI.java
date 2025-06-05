@@ -446,12 +446,12 @@ public class ChessGUI extends SimpleGui {
     
     protected void updateAnalyzeButton() {
         if (game == null) {
-            clearSlot(76);
+            clearSlot(80);
             return;
         }
         
         if (game.isGameActive()) {
-            setSlot(76, new GuiElementBuilder(Items.GRAY_DYE)
+            setSlot(80, new GuiElementBuilder(Items.GRAY_DYE)
                     .setCustomModelData(GameUtility.ANALYZE_POSITION.getModelData())
                     .setName(Component.literal("§7🔍 Analyze"))
                     .addLoreLine(Component.literal("§7Available when game ends"))
@@ -460,7 +460,7 @@ public class ChessGUI extends SimpleGui {
                         player.sendSystemMessage(Component.literal("§cAnalysis is only available after the game ends!"));
                     }));
         } else {
-            setSlot(76, createUtilityButton(GameUtility.ANALYZE_POSITION, this::handleAnalyze));
+            setSlot(80, createUtilityButton(GameUtility.ANALYZE_POSITION, this::handleAnalyze));
         }
     }
     

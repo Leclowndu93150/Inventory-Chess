@@ -7,6 +7,7 @@ import com.leclowndu93150.guichess.chess.pieces.PieceColor;
 import com.leclowndu93150.guichess.chess.pieces.PieceType;
 import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.game.ChessBoard;
+import com.leclowndu93150.guichess.game.GameManager;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import net.minecraft.network.chat.Component;
@@ -18,6 +19,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Practice board GUI for solo chess practice and position exploration.
+ * 
+ * <p>Provides a sandbox environment where players can practice moves, explore positions,
+ * and experiment with different chess scenarios without time constraints or opponents.
+ * Includes move validation, undo functionality, and Stockfish analysis integration.
+ * 
+ * @author GUIChess
+ * @since 1.0
+ */
 public class PracticeBoardGUI extends ChessGUI {
     private ChessBoard practiceBoard;
     private ChessPosition selectedSquare = null;
@@ -26,6 +37,11 @@ public class PracticeBoardGUI extends ChessGUI {
     private ChessPosition promotionFrom;
     private ChessPosition promotionTo;
 
+    /**
+     * Creates a new practice board GUI for the specified player.
+     * 
+     * @param player the player using the practice board
+     */
     public PracticeBoardGUI(ServerPlayer player) {
         super(player, null, PieceColor.WHITE);
         this.practiceBoard = new ChessBoard();
@@ -71,6 +87,8 @@ public class PracticeBoardGUI extends ChessGUI {
 
     @Override
     public void onClose() {
+        // Restore player inventory
+        GameManager.getInstance().restoreInventoryAfterAnalysis(player);
         super.onClose();
     }
 

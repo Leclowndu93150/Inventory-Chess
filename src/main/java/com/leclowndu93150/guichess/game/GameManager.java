@@ -13,6 +13,7 @@ import com.leclowndu93150.guichess.data.PlayerData;
 import com.leclowndu93150.guichess.data.BotProfile;
 import com.leclowndu93150.guichess.gui.ChessGUI;
 import com.leclowndu93150.guichess.gui.MatchAnalysisGUI;
+import com.leclowndu93150.guichess.gui.PracticeBoardGUI;
 import com.leclowndu93150.guichess.gui.SpectatorGUI;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
 import net.minecraft.nbt.CompoundTag;
@@ -459,7 +460,7 @@ public class GameManager {
         }
     }
     
-    private void savePlayerInventory(ServerPlayer player) {
+    public void savePlayerInventory(ServerPlayer player) {
         if (player != null && !player.hasDisconnected()) {
             CompoundTag tag = new CompoundTag();
             ListTag inventoryTag = new ListTag();
@@ -1209,8 +1210,36 @@ public class GameManager {
             return;
         }
         
+        // Save player inventory before opening analysis GUI
+        savePlayerInventory(player);
+        
         MatchAnalysisGUI analysisGUI = new MatchAnalysisGUI(player, gameHistory);
         analysisGUI.open();
+    }
+    
+    /**
+     * Restores player inventory after closing analysis GUI.
+     */
+    public void restoreInventoryAfterAnalysis(ServerPlayer player) {
+        clearPlayerInventoryFromChessPieces(player);
+    }
+    
+    /**
+     * Opens practice board GUI for a player with inventory management.
+     */
+    public void openPracticeBoard(ServerPlayer player) {
+        savePlayerInventory(player);
+        PracticeBoardGUI practiceGUI = new PracticeBoardGUI(player);
+        practiceGUI.open();
+    }
+    
+    /**
+     * Opens practice board GUI with a specific FEN position.
+     */
+    public void openPracticeBoardWithFEN(ServerPlayer player, String fen) {
+        savePlayerInventory(player);
+        PracticeBoardGUI practiceGUI = new PracticeBoardGUI(player, fen);
+        practiceGUI.open();
     }
     
     public MatchHistoryManager getMatchHistoryManager() {

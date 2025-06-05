@@ -19,6 +19,7 @@ public class ChallengeAcceptGUI extends SimpleGui {
     private final ChessChallenge challenge;
     private final List<ItemStack> additionalBetItems = new ArrayList<>();
     private boolean showingBetScreen = false;
+    private boolean acceptProcessed = false;
     
     public ChallengeAcceptGUI(ServerPlayer player, ChessChallenge challenge) {
         super(MenuType.GENERIC_9x3, player, false);
@@ -26,6 +27,13 @@ public class ChallengeAcceptGUI extends SimpleGui {
         this.challenge = challenge;
         setTitle(Component.literal("§0Chess Challenge from " + challenge.getChallenger().getName().getString()));
         updateDisplay();
+    }
+    
+    @Override
+    public void onOpen() {
+        // Save player inventory before opening GUI to protect against item loss
+        GameManager.getInstance().savePlayerInventory(player);
+        super.onOpen();
     }
     
     private void updateDisplay() {
@@ -77,7 +85,9 @@ public class ChallengeAcceptGUI extends SimpleGui {
                 .setName(Component.literal("§aAccept Challenge"))
                 .addLoreLine(Component.literal("§7Start the game"))
                 .setCallback((index, type, action, gui) -> {
-                    acceptChallenge();
+                    if (type.isLeft) { // Only process left clicks
+                        acceptChallenge();
+                    }
                 }));
         
         // Decline button
@@ -85,7 +95,9 @@ public class ChallengeAcceptGUI extends SimpleGui {
                 .setName(Component.literal("§cDecline Challenge"))
                 .addLoreLine(Component.literal("§7Reject this challenge"))
                 .setCallback((index, type, action, gui) -> {
-                    declineChallenge();
+                    if (type.isLeft) { // Only process left clicks
+                        declineChallenge();
+                    }
                 }));
     }
     
@@ -171,6 +183,11 @@ public class ChallengeAcceptGUI extends SimpleGui {
     }
     
     private void acceptChallenge() {
+        if (acceptProcessed) {
+            return; // Prevent duplicate processing
+        }
+        acceptProcessed = true;
+        
         challenge.setAcceptedBet(additionalBetItems);
         // Clear our local list since GameManager will handle the items
         additionalBetItems.clear();
@@ -182,7 +199,6 @@ public class ChallengeAcceptGUI extends SimpleGui {
     private void declineChallenge() {
         GameManager.getInstance().declineChallenge(player, challenge);
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
-        player.sendSystemMessage(Component.literal("§cChallenge declined."));
         close();
     }
     
@@ -195,6 +211,9 @@ public class ChallengeAcceptGUI extends SimpleGui {
             }
         }
         additionalBetItems.clear();
+        
+        // Restore original inventory to ensure survival safety
+        GameManager.getInstance().restoreInventoryAfterAnalysis(player);
         super.onClose();
     }
 }

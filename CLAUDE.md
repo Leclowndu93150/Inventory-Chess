@@ -89,6 +89,38 @@ setSlot(slotIndex, builder);
 - `GuiElementInterface`: Base interface for all GUI elements
 - `ClickCallback`: Handles player interactions with GUI elements
 - `ItemClickCallback`: Legacy callback interface for backwards compatibility
+- `AnimatedGuiElement`: Multi-frame animated elements with timing control
+- `GuiElementBuilderInterface`: Base interface for all element builders
+
+**Click Type System:**
+- `ClickType`: Simplified enum for common click types (LEFT, RIGHT, SHIFT+LEFT, etc.)
+- Event flow: Player click → VirtualScreenHandler → ClickType conversion → Callback execution
+- GUI can override `onClick()` for additional handling
+
+**Virtual Screen Architecture:**
+- `VirtualScreenHandler`: Server-side container menu implementation
+- `VirtualSlot`: Read-only slot implementation for GUI elements  
+- `VirtualInventory`: Dummy inventory backing virtual slots
+- Benefits: Isolation, security, flexibility with mixed virtual/real slots
+
+**GUI Hierarchy:**
+```
+GuiInterface
+├── SlotGuiInterface
+    ├── BaseSlotGui (abstract base class)
+        ├── SimpleGui (main implementation)
+        └── LayeredGui (multi-layer support)
+    ├── AnvilInputGui (specialized input GUI)
+    ├── BookGui (book-based GUI)
+    └── MerchantGui (trading interface)
+```
+
+**Best Practices:**
+- Use builder pattern for element creation with fluent API
+- Handle click types appropriately (typically check for `type.isLeft`)
+- Disable auto-update during rapid changes for performance
+- Use custom model data for visual states and piece appearance
+- Batch slot updates when possible for efficiency
 
 ### Data Persistence
 
@@ -141,3 +173,10 @@ Run the development server and use `/chess` commands to test functionality:
 - `/chess challenge` for player challenges  
 - `/chess board` to open practice board
 - `/chess stats` for player statistics
+
+### Debug Commands (Admin level 2+)
+- `/chess admin debug simple` - Opens single chest GUI (9x3 = 27 slots) with numbered glass panes showing slot indices
+- `/chess admin debug double` - Opens double chest GUI (9x6 = 54 slots) with numbered glass panes showing slot indices
+- `/chess admin testoverlay` - Tests overlay model data assignments
+
+These debug GUIs help understand slot mapping and are essential for GUI development and troubleshooting layout issues.

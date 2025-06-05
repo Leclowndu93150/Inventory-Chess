@@ -29,8 +29,20 @@ import org.slf4j.Logger;
 import java.util.UUID;
 
 /**
- * Main mod class for GUIChess - a chess implementation for Minecraft.
- * Provides chess gameplay with GUI interfaces, bot opponents, and spectator support.
+ * Main mod class for GUIChess - a comprehensive chess implementation for Minecraft.
+ * 
+ * <p>Provides a complete chess gaming experience including:
+ * <ul>
+ * <li>Player vs Player games with ELO rating system</li>
+ * <li>Player vs AI games with configurable difficulty levels</li>
+ * <li>Real-time spectator system</li>
+ * <li>Post-game analysis with Stockfish integration</li>
+ * <li>Challenge system with optional betting</li>
+ * <li>Statistics tracking and match history</li>
+ * </ul>
+ * 
+ * @author GUIChess
+ * @since 1.0
  */
 @Mod(GUIChess.MODID)
 public class GUIChess {

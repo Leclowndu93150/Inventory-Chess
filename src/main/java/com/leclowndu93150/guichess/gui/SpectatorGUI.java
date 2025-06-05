@@ -14,11 +14,27 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+/**
+ * Spectator interface for watching ongoing chess games.
+ * 
+ * <p>Allows viewers to observe games in real-time with the ability to switch perspectives
+ * between white and black views, request hints, and access game information without
+ * interfering with the actual game play.
+ * 
+ * @author GUIChess
+ * @since 1.0
+ */
 public class SpectatorGUI extends ChessGUI {
     private PieceColor viewPerspective = PieceColor.WHITE;
 
+    /**
+     * Creates a new spectator GUI for the given game.
+     * 
+     * @param spectator the player watching the game
+     * @param game the game being observed
+     */
     public SpectatorGUI(ServerPlayer spectator, ChessGame game) {
-        super(spectator, game, PieceColor.WHITE); // Initial perspective is white
+        super(spectator, game, PieceColor.WHITE);
         setTitle(Component.literal("§9Spectating Chess Game"));
     }
 

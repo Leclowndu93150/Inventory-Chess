@@ -118,6 +118,13 @@ public class ChallengeFlowGUI extends SimpleGui {
         updateDisplay();
     }
     
+    @Override
+    public void onOpen() {
+        // Save player inventory before opening GUI to protect against item loss
+        GameManager.getInstance().savePlayerInventory(player);
+        super.onOpen();
+    }
+    
     private void updateDisplay() {
         clearAllSlots();
         
@@ -132,6 +139,26 @@ public class ChallengeFlowGUI extends SimpleGui {
             case CONFIRM -> setupConfirmScreen();
         }
         
+        setupNavigationButtons();
+    }
+    
+    private void refreshCurrentScreen() {
+        // Update only the current screen content without clearing - prevents flickering
+        switch (currentStep) {
+            case OPPONENT_TYPE -> setupOpponentTypeScreen();
+            case BOT_CONFIG -> setupBotConfigScreen();
+            case HUMAN_SELECT -> setupHumanSelectScreen();
+            case TIME_CONTROL -> setupTimeControlScreen();
+            case BET_CHOICE -> setupBetChoiceScreen();
+            case BET_ITEMS -> setupBetItemsScreen();
+            case SIDE_SELECT -> setupSideSelectScreen();
+            case CONFIRM -> setupConfirmScreen();
+        }
+        
+        setupNavigationButtons();
+    }
+    
+    private void setupNavigationButtons() {
         // Add navigation buttons
         if (currentStep != Step.OPPONENT_TYPE) {
             setSlot(BACK_BUTTON_SLOT, createBackButton());
@@ -157,7 +184,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                     isBot = true;
                     humanOpponent = null;
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
         
         // Human option
@@ -171,7 +198,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                 .setCallback((index, type, action, gui) -> {
                     isBot = false;
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
     }
     
@@ -194,7 +221,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                         botElo = Math.max(500, botElo - change);
                     }
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
         
         // Hints Display
@@ -212,7 +239,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                         hintsAllowed = Math.max(0, hintsAllowed - 1);
                     }
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
     }
     
@@ -247,7 +274,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                     .setCallback((index, type, action, gui) -> {
                         humanOpponent = p;
                         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SELECT);
-                        updateDisplay();
+                        refreshCurrentScreen();
                     }));
             slot++;
         }
@@ -272,7 +299,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                     .setCallback((index, type, action, gui) -> {
                         timeControl = tc;
                         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SELECT);
-                        updateDisplay();
+                        refreshCurrentScreen();
                     }));
             slot++;
         }
@@ -290,7 +317,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                 .setCallback((index, type, action, gui) -> {
                     wantsToBet = true;
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
         
         setSlot(15, new GuiElementBuilder(Items.BARRIER)
@@ -303,7 +330,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                     wantsToBet = false;
                     betItems.clear();
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
     }
     
@@ -341,7 +368,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                                     player.drop(removed, false);
                                 }
                                 ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                                updateDisplay();
+                                refreshCurrentScreen();
                             }
                         }));
             }
@@ -360,7 +387,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                                 betItems.add(cursor.copy());
                                 player.containerMenu.setCarried(ItemStack.EMPTY);
                                 ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SUCCESS);
-                                updateDisplay();
+                                refreshCurrentScreen();
                             }
                         }));
             }
@@ -377,7 +404,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                 .setCallback((index, type, action, gui) -> {
                     preferredSide = PieceColor.WHITE;
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
         
         setSlot(13, new GuiElementBuilder(Items.GRAY_WOOL)
@@ -387,7 +414,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                 .setCallback((index, type, action, gui) -> {
                     preferredSide = null;
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
         
         setSlot(16, new GuiElementBuilder(Items.BLACK_WOOL)
@@ -397,7 +424,7 @@ public class ChallengeFlowGUI extends SimpleGui {
                 .setCallback((index, type, action, gui) -> {
                     preferredSide = PieceColor.BLACK;
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    updateDisplay();
+                    refreshCurrentScreen();
                 }));
     }
     
@@ -552,7 +579,6 @@ public class ChallengeFlowGUI extends SimpleGui {
             
             GameManager.getInstance().createChallenge(challenge);
             ChessSoundManager.playUISound(player, ChessSoundManager.UISound.SUCCESS);
-            player.sendSystemMessage(Component.literal("§aChallenge sent to " + humanOpponent.getName().getString()));
             close();
         }
     }
@@ -566,6 +592,9 @@ public class ChallengeFlowGUI extends SimpleGui {
             }
         }
         betItems.clear();
+        
+        // Restore original inventory to ensure survival safety
+        GameManager.getInstance().restoreInventoryAfterAnalysis(player);
         super.onClose();
     }
 

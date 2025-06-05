@@ -2,7 +2,7 @@ package com.leclowndu93150.guichess.chess.board;
 
 import net.minecraft.network.chat.Component;
 
-public enum BoardSquare {
+public enum  BoardSquare {
     // Light and dark squares (1020-1021)
     LIGHT_SQUARE(1020, "light_square", Component.literal("")),
     DARK_SQUARE(1021, "dark_square", Component.literal("")),

@@ -88,6 +88,20 @@ public class ChallengeConfigGUI extends SimpleGui {
         setupGUI();
     }
     
+    @Override
+    public void onOpen() {
+        // Save player inventory before opening GUI to ensure survival safety
+        GameManager.getInstance().savePlayerInventory(player);
+        super.onOpen();
+    }
+    
+    @Override
+    public void onClose() {
+        // Restore original inventory to ensure survival safety
+        GameManager.getInstance().restoreInventoryAfterAnalysis(player);
+        super.onClose();
+    }
+    
     private void setupGUI() {
         // Fill background with gray glass panes
         for (int i = 0; i < 54; i++) {

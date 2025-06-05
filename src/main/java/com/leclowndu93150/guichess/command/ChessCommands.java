@@ -11,6 +11,8 @@ import com.leclowndu93150.guichess.gui.ChessGUI;
 import com.leclowndu93150.guichess.gui.ChallengeFlowGUI;
 import com.leclowndu93150.guichess.gui.ChallengeAcceptGUI;
 import com.leclowndu93150.guichess.gui.PracticeBoardGUI;
+import com.leclowndu93150.guichess.gui.DebugSimpleGUI;
+import com.leclowndu93150.guichess.gui.DebugDoubleGUI;
 import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -115,7 +117,9 @@ public class ChessCommands {
                                 .executes(ChessCommands::showGameHistory))
 
                         .then(Commands.literal("analyze")
-                                .executes(ChessCommands::analyzeCurrentGame))
+                                .executes(ChessCommands::analyzeCurrentGame)
+                                .then(Commands.argument("match_number", IntegerArgumentType.integer(1))
+                                        .executes(ChessCommands::analyzeHistoryGame)))
 
                         .then(Commands.literal("hint")
                                 .executes(ChessCommands::getHint))
@@ -170,7 +174,13 @@ public class ChessCommands {
 
                                             player.sendSystemMessage(Component.literal("§aGave you 5 test overlay items. Total overlays: " + overlayData.size()));
                                             return 1;
-                                        }))));
+                                        }))
+                                .then(Commands.literal("debug")
+                                        .requires(source -> source.hasPermission(2))
+                                        .then(Commands.literal("simple")
+                                                .executes(ChessCommands::openDebugSimpleGUI))
+                                        .then(Commands.literal("double")
+                                                .executes(ChessCommands::openDebugDoubleGUI)))));
 
     }
 
@@ -424,7 +434,7 @@ public class ChessCommands {
                 game.isPlayerWhite(player.getUUID()) ? opponent : "You", result, date));
         }
         
-        message.append("\n§7Use §e/chess analyze §7to review a game with computer analysis!");
+        message.append("\n§7Use §e/chess analyze §7for your most recent game or §e/chess analyze <number> §7for a specific match!");
         
         context.getSource().sendSuccess(() -> Component.literal(message.toString()), false);
         return 1;
@@ -458,6 +468,45 @@ public class ChessCommands {
         GameManager.getInstance().openMatchAnalysis(player, mostRecentGame.gameId);
         
         context.getSource().sendSuccess(() -> Component.literal("§aOpening analysis for your most recent game..."), false);
+        return 1;
+    }
+    
+    private static int analyzeHistoryGame(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        int matchNumber = IntegerArgumentType.getInteger(context, "match_number");
+        ChessGame currentGame = GameManager.getInstance().getPlayerGame(player);
+        MatchHistoryManager historyManager = GameManager.getInstance().getMatchHistoryManager();
+
+        // Check if player is in an active game
+        if (currentGame != null && currentGame.isGameActive()) {
+            context.getSource().sendFailure(Component.literal("§cCannot analyze during an active game. Finish your game first."));
+            return 0;
+        }
+
+        if (historyManager == null) {
+            context.getSource().sendFailure(Component.literal("§cMatch history not available."));
+            return 0;
+        }
+
+        // Get enough games to find the requested match number
+        List<GameHistory> recentGames = historyManager.getRecentPlayerGames(player.getUUID(), Math.max(matchNumber, 10));
+        
+        if (recentGames.isEmpty()) {
+            context.getSource().sendFailure(Component.literal("§cNo games found in your history."));
+            return 0;
+        }
+        
+        if (matchNumber > recentGames.size()) {
+            context.getSource().sendFailure(Component.literal("§cMatch " + matchNumber + " not found. You only have " + recentGames.size() + " games in your recent history."));
+            return 0;
+        }
+
+        // Games are indexed from 1 in the display, but 0-based in the list
+        GameHistory selectedGame = recentGames.get(matchNumber - 1);
+        GameManager.getInstance().openMatchAnalysis(player, selectedGame.gameId);
+        
+        String opponent = selectedGame.getOpponentName(player.getUUID());
+        context.getSource().sendSuccess(() -> Component.literal("§aOpening analysis for match " + matchNumber + " vs " + opponent + "..."), false);
         return 1;
     }
 
@@ -503,8 +552,7 @@ public class ChessCommands {
                 GameManager.getInstance().createGame(game.getWhitePlayer(), game.getBlackPlayer(), game.getTimeControl()); // Re-create to fix
             }
         } else {
-            PracticeBoardGUI practiceGUI = new PracticeBoardGUI(player);
-            practiceGUI.open();
+            GameManager.getInstance().openPracticeBoard(player);
         }
         return 1;
     }
@@ -536,8 +584,7 @@ public class ChessCommands {
         }
 
         try {
-            PracticeBoardGUI practiceGUI = new PracticeBoardGUI(player, fen);
-            practiceGUI.open();
+            GameManager.getInstance().openPracticeBoardWithFEN(player, fen);
             context.getSource().sendSuccess(() -> Component.literal("§aLoaded position from FEN into practice board."), false);
             return 1;
         } catch (IllegalArgumentException e) {
@@ -646,6 +693,20 @@ public class ChessCommands {
         
         gameManager.createBotGame(player, playerColor, TimeControl.RAPID_10_0, botElo, 3);
         
+        return 1;
+    }
+    
+    private static int openDebugSimpleGUI(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        DebugSimpleGUI debugGUI = new DebugSimpleGUI(player);
+        debugGUI.open();
+        return 1;
+    }
+    
+    private static int openDebugDoubleGUI(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        DebugDoubleGUI debugGUI = new DebugDoubleGUI(player);
+        debugGUI.open();
         return 1;
     }
 }
