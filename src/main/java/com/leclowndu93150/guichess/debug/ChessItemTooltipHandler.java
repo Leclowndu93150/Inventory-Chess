@@ -2,9 +2,9 @@ package com.leclowndu93150.guichess.debug;
 
 import com.leclowndu93150.guichess.chess.board.BoardSquare;
 import com.leclowndu93150.guichess.chess.pieces.ChessPiece;
-import com.leclowndu93150.guichess.chess.util.GameUtility;
-import com.leclowndu93150.guichess.util.PieceOverlayHelper;
-import com.leclowndu93150.guichess.util.TimeHelper;
+import com.leclowndu93150.guichess.chess.rules.GameUtility;
+import com.leclowndu93150.guichess.util.visual.PieceOverlayHelper;
+import com.leclowndu93150.guichess.util.time.TimeHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;

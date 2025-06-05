@@ -1,7 +1,7 @@
 package com.leclowndu93150.guichess.events;
 
-import com.leclowndu93150.guichess.game.ChessGame;
-import com.leclowndu93150.guichess.game.GameManager;
+import com.leclowndu93150.guichess.game.core.ChessGame;
+import com.leclowndu93150.guichess.game.core.GameManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;

@@ -2,9 +2,9 @@ package com.leclowndu93150.guichess.datagen;
 
 import com.leclowndu93150.guichess.chess.board.BoardSquare;
 import com.leclowndu93150.guichess.chess.pieces.ChessPiece;
-import com.leclowndu93150.guichess.chess.util.GameUtility;
-import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
-import com.leclowndu93150.guichess.util.TimeHelper;
+import com.leclowndu93150.guichess.chess.rules.GameUtility;
+import com.leclowndu93150.guichess.util.visual.OverlayModelDataRegistry;
+import com.leclowndu93150.guichess.util.time.TimeHelper;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.model.generators.ItemModelBuilder;

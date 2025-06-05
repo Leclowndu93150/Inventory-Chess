@@ -1,20 +1,20 @@
 package com.leclowndu93150.guichess.command;
 
 import com.leclowndu93150.guichess.chess.pieces.PieceColor;
-import com.leclowndu93150.guichess.chess.util.TimeControl;
-import com.leclowndu93150.guichess.data.GameHistory;
-import com.leclowndu93150.guichess.data.MatchHistoryManager;
-import com.leclowndu93150.guichess.data.PlayerData;
-import com.leclowndu93150.guichess.engine.StockfishIntegration;
-import com.leclowndu93150.guichess.engine.StockfishWebIntegration;
-import com.leclowndu93150.guichess.game.*;
-import com.leclowndu93150.guichess.gui.ChessGUI;
-import com.leclowndu93150.guichess.gui.ChallengeFlowGUI;
-import com.leclowndu93150.guichess.gui.ChallengeAcceptGUI;
-import com.leclowndu93150.guichess.gui.PracticeBoardGUI;
-import com.leclowndu93150.guichess.gui.DebugSimpleGUI;
-import com.leclowndu93150.guichess.gui.DebugDoubleGUI;
-import com.leclowndu93150.guichess.util.OverlayModelDataRegistry;
+import com.leclowndu93150.guichess.game.challenge.ChessChallenge;
+import com.leclowndu93150.guichess.game.core.ChessGame;
+import com.leclowndu93150.guichess.game.core.GameManager;
+import com.leclowndu93150.guichess.util.time.TimeControl;
+import com.leclowndu93150.guichess.data.models.GameHistory;
+import com.leclowndu93150.guichess.data.storage.MatchHistoryManager;
+import com.leclowndu93150.guichess.data.models.PlayerData;
+import com.leclowndu93150.guichess.engine.integration.StockfishEngineManager;
+import com.leclowndu93150.guichess.gui.game.ChessGUI;
+import com.leclowndu93150.guichess.gui.challenge.ChallengeFlowGUI;
+import com.leclowndu93150.guichess.gui.challenge.ChallengeAcceptGUI;
+import com.leclowndu93150.guichess.gui.debug.DebugSimpleGUI;
+import com.leclowndu93150.guichess.gui.debug.DebugDoubleGUI;
+import com.leclowndu93150.guichess.util.visual.OverlayModelDataRegistry;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -531,7 +531,7 @@ public class ChessCommands {
         }
 
 
-        StockfishWebIntegration.getInstance().requestHint(game.getBoard().toFEN(), hint -> {
+        StockfishEngineManager.getInstance().requestHint(game.getBoard().toFEN(), hint -> {
             player.sendSystemMessage(Component.literal("§bHint: " + hint));
         });
 

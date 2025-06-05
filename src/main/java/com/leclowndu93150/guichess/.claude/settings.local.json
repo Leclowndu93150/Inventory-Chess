@@ -4,7 +4,10 @@
       "Bash(rg:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }

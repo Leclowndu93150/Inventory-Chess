@@ -180,3 +180,85 @@ Run the development server and use `/chess` commands to test functionality:
 - `/chess admin testoverlay` - Tests overlay model data assignments
 
 These debug GUIs help understand slot mapping and are essential for GUI development and troubleshooting layout issues.
+
+## Coding Style Guidelines
+
+### JavaDoc Standards
+- **Class-level documentation only**: Document the purpose and responsibility of classes
+- **Public method documentation**: Only for main public methods that represent key functionality
+- **No internal documentation**: Do not document private methods, implementation details, or obvious getters/setters
+- **Concise and focused**: Keep documentation brief and focused on the "what" and "why", not the "how"
+
+### JavaDoc Format
+```java
+/**
+ * Brief description of what the class does.
+ * 
+ * <p>Additional context or important notes about the class responsibility.
+ * 
+ * <p><strong>Important warnings or notes in uppercase when needed.</strong>
+ */
+public class ExampleClass {
+    
+    /**
+     * Brief description of what this method accomplishes.
+     * 
+     * @param param description if not obvious from name
+     * @return description if not obvious from type
+     */
+    public ReturnType mainMethod(ParamType param) {
+        // Implementation without internal comments
+    }
+    
+    // No JavaDoc for simple/obvious methods
+    public void simpleMethod() {
+    }
+    
+    private void helperMethod() {
+        // No JavaDoc for private methods
+    }
+}
+```
+
+### Package Organization
+- **Logical grouping**: Related classes in dedicated sub-packages
+- **Single responsibility**: Each package has a clear, focused purpose
+- **Hierarchical structure**: Sub-packages for different aspects of functionality
+
+#### Current Package Structure
+```
+com.leclowndu93150.guichess/
+├── engine/
+│   ├── integration/ - Stockfish integrations (web and binary)
+│   ├── installer/ - Binary installation and management
+│   └── analysis/ - Position analysis and evaluation
+├── game/
+│   ├── core/ - Core game logic (ChessGame, ChessBoard, GameManager)
+│   ├── players/ - Player implementations (Human, Bot, etc.)
+│   └── challenge/ - Challenge system and flow
+├── gui/
+│   ├── game/ - Game interfaces (ChessGUI, SpectatorGUI)
+│   ├── challenge/ - Challenge creation and acceptance GUIs
+│   ├── analysis/ - Analysis and practice GUIs
+│   └── debug/ - Debug and development GUIs
+├── data/
+│   ├── storage/ - Data persistence and storage
+│   └── models/ - Data models and structures
+└── util/
+    ├── audio/ - Sound management
+    ├── visual/ - Visual helpers and overlays
+    └── time/ - Time management utilities
+```
+
+### Code Cleanliness
+- **Remove useless comments**: No obvious or redundant comments
+- **Clean imports**: Organize and remove unused imports
+- **Consistent naming**: Clear, descriptive variable and method names
+- **No dead code**: Remove unused methods and variables
+
+### Best Practices
+- Keep classes focused on single responsibilities
+- Use builder patterns for complex object creation
+- Handle errors gracefully without verbose logging in production code
+- Prefer composition over inheritance where appropriate
+- Use enums for fixed sets of constants

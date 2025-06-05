@@ -1,10 +1,10 @@
 package com.leclowndu93150.guichess;
 
 import com.leclowndu93150.guichess.command.ChessCommands;
-import com.leclowndu93150.guichess.engine.StockfishIntegration;
+import com.leclowndu93150.guichess.engine.integration.StockfishEngineManager;
 import com.leclowndu93150.guichess.events.PlayerEventHandler;
-import com.leclowndu93150.guichess.game.GameManager;
-import com.leclowndu93150.guichess.util.TimeHelper;
+import com.leclowndu93150.guichess.game.core.GameManager;
+import com.leclowndu93150.guichess.util.time.TimeHelper;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.renderer.ItemModelShaper;
 import net.minecraft.client.resources.model.ModelBaker;
@@ -81,7 +81,7 @@ public class GUIChess {
         GameManager.getInstance().initialize(server);
         LOGGER.info("GUIChess initialized with server");
         
-        StockfishIntegration.getInstance().waitUntilReady().thenAccept(ready -> {
+        StockfishEngineManager.getInstance().waitUntilReady().thenAccept(ready -> {
             if (ready) {
                 LOGGER.info("Stockfish engine initialized successfully");
             } else {
@@ -96,7 +96,7 @@ public class GUIChess {
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
         GameManager.getInstance().shutdown();
-        StockfishIntegration.getInstance().shutdown();
+        StockfishEngineManager.getInstance().shutdown();
         LOGGER.info("GUIChess shutdown complete");
     }
 
