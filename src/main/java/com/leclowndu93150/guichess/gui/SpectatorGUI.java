@@ -76,13 +76,14 @@ public class SpectatorGUI extends ChessGUI {
                 .setName(Component.literal("§7Game Info"))
                 .setCallback((index, type, action, gui) -> {
                     ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
-                    String whitePlayer = game.getWhitePlayer() != null ? game.getWhitePlayer().getName().getString() : "Unknown";
-                    String blackPlayer = game.getBlackPlayer() != null ? game.getBlackPlayer().getName().getString() : "Unknown";
+                    String whitePlayer = game.getWhitePlayer() != null ? game.getWhitePlayer().getName().getString() : "Bot";
+                    String blackPlayer = game.getBlackPlayer() != null ? game.getBlackPlayer().getName().getString() : "Bot";
                     player.sendSystemMessage(Component.literal("§7White: " + whitePlayer + " vs Black: " + blackPlayer));
                     player.sendSystemMessage(Component.literal("§7Time Control: " + game.getTimeControl().displayName));
                 }));
 
-        setSlot(9, new GuiElementBuilder(Items.ENDER_EYE)
+        // Move analysis request to hotbar (slot 76)
+        setSlot(76, new GuiElementBuilder(Items.ENDER_EYE)
                 .setName(Component.literal("§dRequest Analysis"))
                 .setCallback((index, type, action, gui) -> {
                     handleHint();
@@ -90,7 +91,6 @@ public class SpectatorGUI extends ChessGUI {
     }
 
     private void updateSpectatorTimerDisplays() {
-        // Use regular Minecraft clocks with time in the name
         ItemStack whiteClockItem = TimeHelper.getClockItem(game.getWhiteTimeLeft());
         ItemStack blackClockItem = TimeHelper.getClockItem(game.getBlackTimeLeft());
         
@@ -170,7 +170,7 @@ public class SpectatorGUI extends ChessGUI {
     }
 
     @Override
-    protected void handleAnalyze() {
+    protected void handleEnableAnalysisMode() {
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
         player.sendSystemMessage(Component.literal("§cSpectators cannot enable analysis mode!"));
     }

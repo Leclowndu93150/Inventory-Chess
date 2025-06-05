@@ -105,7 +105,6 @@ public class ChessGUI extends SimpleGui {
             if (opponent != null) {
                 opponentName = opponent.getName().getString();
             } else {
-                // This is a bot game
                 if (game instanceof com.leclowndu93150.guichess.game.ChessBotGame botGame) {
                     opponentName = botGame.getBotName();
                 } else {
@@ -416,9 +415,7 @@ public class ChessGUI extends SimpleGui {
     protected void setupUtilitySlots() {
         updateTimerDisplays();
         updateTurnIndicator();
-
         updateResignButtons();
-
         updateDrawButtons();
     }
     
@@ -444,6 +441,37 @@ public class ChessGUI extends SimpleGui {
         updateTurnIndicator();
         updateDrawButtons();
         updateResignButtons();
+        updateAnalyzeButton();
+    }
+    
+    protected void updateAnalyzeButton() {
+        if (game == null) {
+            clearSlot(76);
+            return;
+        }
+        
+        if (game.isGameActive()) {
+            setSlot(76, new GuiElementBuilder(Items.GRAY_DYE)
+                    .setCustomModelData(GameUtility.ANALYZE_POSITION.getModelData())
+                    .setName(Component.literal("§7🔍 Analyze"))
+                    .addLoreLine(Component.literal("§7Available when game ends"))
+                    .setCallback((index, type, actionType, gui) -> {
+                        ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
+                        player.sendSystemMessage(Component.literal("§cAnalysis is only available after the game ends!"));
+                    }));
+        } else {
+            setSlot(76, createUtilityButton(GameUtility.ANALYZE_POSITION, this::handleAnalyze));
+        }
+    }
+    
+    private void handleAnalyze() {
+        if (game == null || game.isGameActive()) {
+            player.sendSystemMessage(Component.literal("§cAnalysis is only available after the game ends!"));
+            return;
+        }
+        
+        // Open match analysis for this game
+        GameManager.getInstance().openMatchAnalysis(player, game.getGameId());
     }
 
     public void updateTimerDisplays() {
@@ -452,7 +480,6 @@ public class ChessGUI extends SimpleGui {
         int playerTimerSlot = 53;
         int opponentTimerSlot = 26;
         
-        // Use regular Minecraft clocks with time in the name
         ItemStack whiteClockItem = TimeHelper.getClockItem(game.getWhiteTimeLeft());
         ItemStack blackClockItem = TimeHelper.getClockItem(game.getBlackTimeLeft());
         
@@ -621,7 +648,7 @@ public class ChessGUI extends SimpleGui {
         game.cancelDrawOffer(player);
     }
 
-    protected void handleAnalyze() {
+    protected void handleEnableAnalysisMode() {
         if (game == null) return;
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ANALYSIS);
         if (game.isAnalysisMode()) {

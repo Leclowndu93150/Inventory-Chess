@@ -1,10 +1,18 @@
 package com.leclowndu93150.guichess.game;
 
+import com.leclowndu93150.guichess.chess.board.ChessMove;
 import com.leclowndu93150.guichess.chess.pieces.PieceColor;
 import com.leclowndu93150.guichess.chess.util.GameState;
 import com.leclowndu93150.guichess.chess.util.TimeControl;
+import com.leclowndu93150.guichess.data.ChessBotDataStorage;
+import com.leclowndu93150.guichess.data.ChessMatchHistoryStorage;
+import com.leclowndu93150.guichess.data.ChessPlayerDataStorage;
+import com.leclowndu93150.guichess.data.GameHistory;
+import com.leclowndu93150.guichess.data.MatchHistoryManager;
 import com.leclowndu93150.guichess.data.PlayerData;
+import com.leclowndu93150.guichess.data.BotProfile;
 import com.leclowndu93150.guichess.gui.ChessGUI;
+import com.leclowndu93150.guichess.gui.MatchAnalysisGUI;
 import com.leclowndu93150.guichess.gui.SpectatorGUI;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
 import net.minecraft.nbt.CompoundTag;
@@ -67,18 +75,19 @@ public class GameManager {
 
     private final Map<UUID, ChessGame> activeGames = new ConcurrentHashMap<>();
     private final Map<UUID, ChessChallenge> pendingChallenges = new ConcurrentHashMap<>();
-    private final Map<UUID, PlayerData> playerDataMap = new ConcurrentHashMap<>();
+    private ChessPlayerDataStorage playerDataStorage;
+    private ChessBotDataStorage botDataStorage;
+    private ChessMatchHistoryStorage matchHistoryStorage;
     private final Map<UUID, ChessGUI> playerGUIs = new ConcurrentHashMap<>();
     private final Map<UUID, List<SpectatorGUI>> spectatorGUIs = new ConcurrentHashMap<>();
 
-    // Time warning tracking
     private final Map<UUID, Set<Integer>> timeWarningsSent = new ConcurrentHashMap<>();
     
-    // Saved inventories for players in games
     private final Map<UUID, CompoundTag> savedInventories = new ConcurrentHashMap<>();
 
     private MinecraftServer server;
     private Path dataDirectory;
+    private MatchHistoryManager matchHistoryManager;
 
     private GameManager() {
         this.scheduler = Executors.newScheduledThreadPool(4);
@@ -134,7 +143,8 @@ public class GameManager {
 
         try {
             Files.createDirectories(dataDirectory);
-            loadPlayerData();
+            initializeSavedData();
+            matchHistoryManager = new MatchHistoryManager(dataDirectory, matchHistoryStorage);
         } catch (IOException e) {
             System.err.println("[GUIChess] Failed to create/load chess data directory: " + e.getMessage());
             e.printStackTrace();
@@ -143,7 +153,7 @@ public class GameManager {
         try {
             scheduler.scheduleAtFixedRate(this::tickAllGames, 0, 1, TimeUnit.SECONDS);
             scheduler.scheduleAtFixedRate(this::cleanupExpiredChallenges, 30, 30, TimeUnit.SECONDS);
-            scheduler.scheduleAtFixedRate(this::savePlayerData, 300, 300, TimeUnit.SECONDS);
+            scheduler.scheduleAtFixedRate(this::markDataDirty, 300, 300, TimeUnit.SECONDS);
             scheduler.scheduleAtFixedRate(this::reopenClosedGameGUIs, 2, 2, TimeUnit.SECONDS);
         } catch (RejectedExecutionException e) {
             System.err.println("[GUIChess] Failed to schedule GameManager tasks: " + e.getMessage());
@@ -156,7 +166,6 @@ public class GameManager {
             for (ChessGame game : activeGames.values()) {
                 if (!game.isGameActive()) continue;
 
-                // Handle white player (may be null in bot games)
                 ServerPlayer whitePlayer = game.getWhitePlayer();
                 if (whitePlayer != null) {
                     ChessGUI whiteGUI = playerGUIs.get(whitePlayer.getUUID());
@@ -165,7 +174,6 @@ public class GameManager {
                     }
                 }
 
-                // Handle black player (may be null in bot games)
                 ServerPlayer blackPlayer = game.getBlackPlayer();
                 if (blackPlayer != null) {
                     ChessGUI blackGUI = playerGUIs.get(blackPlayer.getUUID());
@@ -214,10 +222,9 @@ public class GameManager {
             System.out.println("[GUIChess] GameManager scheduler already shutdown or null.");
         }
 
-        // Clear saved inventories
         savedInventories.clear();
         
-        savePlayerData();
+        markDataDirty();
         saveAllGameData();
     }
 
@@ -262,14 +269,21 @@ public class GameManager {
             return null;
         }
 
-        ChessBotGame game = new ChessBotGame(player, playerColor, timeControl, botElo, hintsAllowed);
+        BotProfile botProfile = getBotProfile(botElo);
+        HumanPlayer humanPlayer = new HumanPlayer(player);
+        BotPlayer botPlayer = new BotPlayer(botProfile);
+        
+        GameParticipant whiteParticipant = playerColor == PieceColor.WHITE ? humanPlayer : botPlayer;
+        GameParticipant blackParticipant = playerColor == PieceColor.BLACK ? humanPlayer : botPlayer;
+
+        ChessBotGame game = new ChessBotGame(whiteParticipant, blackParticipant, timeControl, hintsAllowed);
         activeGames.put(game.getGameId(), game);
 
         ChessGUI gui = new ChessGUI(player, game, playerColor);
         playerGUIs.put(player.getUUID(), gui);
         gui.open();
 
-        player.sendSystemMessage(Component.literal("§aStarting game against bot (ELO " + botElo + ")!"));
+        player.sendSystemMessage(Component.literal("§aStarting game against " + botProfile.getBotName() + " (ELO " + botElo + ")!"));
 
         return game;
     }
@@ -294,25 +308,34 @@ public class GameManager {
      * @return the created ChessGame instance with all systems initialized
      */
     public ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl, boolean randomizeSides, int hintsAllowed) {
+        HumanPlayer humanPlayer1 = new HumanPlayer(player1);
+        HumanPlayer humanPlayer2 = new HumanPlayer(player2);
+        
+        GameParticipant whiteParticipant, blackParticipant;
         ServerPlayer whitePlayer, blackPlayer;
 
         if (randomizeSides) {
             if (Math.random() < 0.5) {
+                whiteParticipant = humanPlayer1;
+                blackParticipant = humanPlayer2;
                 whitePlayer = player1;
                 blackPlayer = player2;
             } else {
+                whiteParticipant = humanPlayer2;
+                blackParticipant = humanPlayer1;
                 whitePlayer = player2;
                 blackPlayer = player1;
             }
-            // Notify players of their colors
             whitePlayer.sendSystemMessage(Component.literal("§fYou are playing as White"));
             blackPlayer.sendSystemMessage(Component.literal("§8You are playing as Black"));
         } else {
+            whiteParticipant = humanPlayer1;
+            blackParticipant = humanPlayer2;
             whitePlayer = player1;
             blackPlayer = player2;
         }
 
-        ChessGame game = new ChessGame(whitePlayer, blackPlayer, timeControl, hintsAllowed);
+        ChessGame game = new ChessGame(whiteParticipant, blackParticipant, timeControl, hintsAllowed);
         activeGames.put(game.getGameId(), game);
 
         ChessGUI whiteGUI = new ChessGUI(whitePlayer, game, PieceColor.WHITE);
@@ -324,7 +347,6 @@ public class GameManager {
         spectatorGUIs.put(game.getGameId(), new ArrayList<>());
         timeWarningsSent.put(game.getGameId(), new HashSet<>());
         
-        // Save player inventories before game starts
         savePlayerInventory(whitePlayer);
         savePlayerInventory(blackPlayer);
 
@@ -382,7 +404,10 @@ public class GameManager {
      * 
      * This method handles the complete game termination process including:
      * <ul>
+     *   <li>Saving complete game history to persistent storage</li>
+     *   <li>Updating player statistics and ELO ratings</li>
      *   <li>Removing the game from active games collection</li>
+     *   <li>Showing analysis button to players</li>
      *   <li>Closing all player and spectator GUIs</li>
      *   <li>Restoring player inventories to pre-game state</li>
      *   <li>Cleaning up time warning tracking</li>
@@ -394,10 +419,13 @@ public class GameManager {
     public void endGame(UUID gameId) {
         ChessGame game = activeGames.remove(gameId);
         if (game != null) {
+            saveGameHistory(game);
+            
+            showPostGameAnalysisOptions(game);
+
             ChessGUI whiteGui = playerGUIs.remove(game.getWhitePlayer().getUUID());
             ChessGUI blackGui = playerGUIs.remove(game.getBlackPlayer().getUUID());
 
-            // Clear inventory after match ended
             clearPlayerInventoryFromChessPieces(game.getWhitePlayer());
             clearPlayerInventoryFromChessPieces(game.getBlackPlayer());
 
@@ -411,7 +439,6 @@ public class GameManager {
                 });
             }
 
-            // Clean up time warnings
             timeWarningsSent.remove(gameId);
         }
     }
@@ -419,17 +446,14 @@ public class GameManager {
     private void clearPlayerInventoryFromChessPieces(ServerPlayer player) {
         if (player != null && !player.hasDisconnected()) {
             server.execute(() -> {
-                // Restore saved inventory if we have one
                 CompoundTag savedInventory = savedInventories.remove(player.getUUID());
                 if (savedInventory != null) {
                     player.getInventory().load(savedInventory.getList("Inventory", 10));
                 }
                 
-                // Force a full inventory update to ensure client syncs properly
                 player.inventoryMenu.broadcastChanges();
                 player.inventoryMenu.sendAllDataToRemote();
                 
-                // Send container update packet to force client refresh
                 player.containerMenu.broadcastChanges();
             });
         }
@@ -553,19 +577,14 @@ public class GameManager {
 
         pendingChallenges.remove(challenge.challengeId);
 
-        // Items were already taken by the GUIs, so we don't need to take them again
-        // The challenge already contains the bet items from both players
-
-        // Determine sides
+        
         PieceColor challengerColor;
         if (challenge.getChallengerPreferredSide() != null) {
             challengerColor = challenge.getChallengerPreferredSide();
         } else {
-            // Random sides
             challengerColor = Math.random() < 0.5 ? PieceColor.WHITE : PieceColor.BLACK;
         }
 
-        // Create game with proper sides
         ChessGame game;
         if (challengerColor == PieceColor.WHITE) {
             game = createGame(challenge.challenger, challenge.challenged, challenge.timeControl, false, challenge.hintsAllowed);
@@ -573,7 +592,6 @@ public class GameManager {
             game = createGame(challenge.challenged, challenge.challenger, challenge.timeControl, false, challenge.hintsAllowed);
         }
         
-        // Store bet items in the game
         if (challenge.hasBet() && game != null) {
             game.setBetItems(challenge.getAllBetItems());
         }
@@ -612,7 +630,6 @@ public class GameManager {
         
         pendingChallenges.remove(challenge.challengeId);
 
-        // Return bet items to challenger
         if (challenge.hasBet()) {
             for (ItemStack item : challenge.getChallengerBet()) {
                 if (!challenge.challenger.getInventory().add(item)) {
@@ -643,8 +660,17 @@ public class GameManager {
      * @return the PlayerData instance for the specified player, never null
      */
     public PlayerData getPlayerData(ServerPlayer player) {
-        return playerDataMap.computeIfAbsent(player.getUUID(),
-                k -> new PlayerData(player.getUUID(), player.getName().getString()));
+        if (playerDataStorage == null) {
+            return new PlayerData(player.getUUID(), player.getName().getString());
+        }
+        return playerDataStorage.getPlayerData(player.getUUID(), player.getName().getString());
+    }
+    
+    public BotProfile getBotProfile(int targetElo) {
+        if (botDataStorage == null) {
+            return new BotProfile(targetElo);
+        }
+        return botDataStorage.getBotProfile(targetElo);
     }
 
     /**
@@ -657,7 +683,10 @@ public class GameManager {
      * @return a list of PlayerData objects sorted by ELO rating, limited to the specified count
      */
     public List<PlayerData> getLeaderboard(int limit) {
-        return playerDataMap.values().stream()
+        if (playerDataStorage == null) {
+            return new ArrayList<>();
+        }
+        return playerDataStorage.getAllPlayerData().values().stream()
                 .filter(p -> p.gamesPlayed >= 1)
                 .sorted(Comparator.comparingInt(PlayerData::getElo).reversed())
                 .limit(limit)
@@ -769,10 +798,9 @@ public class GameManager {
         int whiteTime = game.getWhiteTimeLeft();
         int blackTime = game.getBlackTimeLeft();
 
-        // Only warn for games with substantial time (more than 2 minutes initially)
         if (game.getTimeControl().initialSeconds <= 120) return;
 
-        // 1 minute warning
+        
         if (whiteTime <= 60 && whiteTime > 59 && !warnings.contains(60)) {
             sendTimeWarning(game.getWhitePlayer(), "§c⚠ 1 minute remaining!");
             warnings.add(60);
@@ -782,7 +810,6 @@ public class GameManager {
             warnings.add(-60);
         }
 
-        // 10 second warning (for games with more than 3 minutes initially)
         if (game.getTimeControl().initialSeconds > 180) {
             if (whiteTime <= 10 && whiteTime > 9 && !warnings.contains(10)) {
                 sendTimeWarning(game.getWhitePlayer(), "§4⚠⚠ 10 SECONDS LEFT! ⚠⚠");
@@ -799,7 +826,6 @@ public class GameManager {
         if (player != null && !player.hasDisconnected()) {
             player.sendSystemMessage(Component.literal(message));
 
-            // Play warning sound
             player.level().playSound(null, player.blockPosition(),
                     SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.PLAYERS, 0.8f, 1.5f);
         }
@@ -809,7 +835,6 @@ public class GameManager {
         pendingChallenges.entrySet().removeIf(entry -> {
             ChessChallenge challenge = entry.getValue();
             if (challenge.isExpired()) {
-                // Return bet items to challenger if any
                 if (challenge.hasBet()) {
                     for (ItemStack item : challenge.getChallengerBet()) {
                         if (!challenge.challenger.getInventory().add(item)) {
@@ -849,53 +874,33 @@ public class GameManager {
     }
 
     /**
-     * Saves all player data to persistent storage.
-     * 
-     * This method serializes all PlayerData objects to NBT format and writes them
-     * to the player_data.nbt file in the chess data directory. This is called
-     * periodically by the scheduler and during shutdown to ensure data persistence.
+     * Initializes SavedData instances for player data and match history.
      */
-    public void savePlayerData() {
-        try {
-            CompoundTag root = new CompoundTag();
-            ListTag playersNBT = new ListTag();
-
-            for (PlayerData data : playerDataMap.values()) {
-                playersNBT.add(data.toNBT());
-            }
-
-            root.put("players", playersNBT);
-
-            Path file = dataDirectory.resolve("player_data.nbt");
-            try (FileOutputStream fos = new FileOutputStream(file.toFile());
-                 BufferedOutputStream bos = new BufferedOutputStream(fos)) {
-                net.minecraft.nbt.NbtIo.writeCompressed(root, bos);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+    private void initializeSavedData() {
+        if (server != null) {
+            playerDataStorage = server.overworld().getDataStorage()
+                    .computeIfAbsent(ChessPlayerDataStorage.factory(), ChessPlayerDataStorage.getDataName());
+            
+            botDataStorage = server.overworld().getDataStorage()
+                    .computeIfAbsent(ChessBotDataStorage.factory(), ChessBotDataStorage.getDataName());
+            
+            matchHistoryStorage = server.overworld().getDataStorage()
+                    .computeIfAbsent(ChessMatchHistoryStorage.factory(), ChessMatchHistoryStorage.getDataName());
         }
     }
-
-    private void loadPlayerData() {
-        try {
-            Path file = dataDirectory.resolve("player_data.nbt");
-            if (!Files.exists(file)) return;
-
-            CompoundTag root;
-            try (FileInputStream fis = new FileInputStream(file.toFile());
-                 BufferedInputStream bis = new BufferedInputStream(fis)) {
-                root = net.minecraft.nbt.NbtIo.readCompressed(bis, net.minecraft.nbt.NbtAccounter.unlimitedHeap());
-            }
-
-            if (root.contains("players", ListTag.TAG_COMPOUND)) {
-                ListTag playersNBT = root.getList("players", CompoundTag.TAG_COMPOUND);
-                for (int i = 0; i < playersNBT.size(); i++) {
-                    PlayerData data = PlayerData.fromNBT(playersNBT.getCompound(i));
-                    playerDataMap.put(data.playerId, data);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+    
+    /**
+     * Marks SavedData as dirty to trigger automatic persistence.
+     */
+    public void markDataDirty() {
+        if (playerDataStorage != null) {
+            playerDataStorage.setDirty();
+        }
+        if (botDataStorage != null) {
+            botDataStorage.setDirty();
+        }
+        if (matchHistoryStorage != null) {
+            matchHistoryStorage.setDirty();
         }
     }
 
@@ -974,6 +979,242 @@ public class GameManager {
         if (!challengesToRemove.isEmpty()) {
             player.sendSystemMessage(Component.literal("§eYour pending chess challenges have been cleared by an admin."));
         }
+    }
+
+    /**
+     * Saves complete game history and updates player statistics.
+     */
+    private void saveGameHistory(ChessGame game) {
+        try {
+            List<GameHistory.MoveRecord> moveRecords = new ArrayList<>();
+            List<ChessMove> moves = game.getBoard().getMoveHistory();
+            List<String> fenHistory = game.getBoard().getFenHistory();
+            List<Long> moveTimestamps = game.getMoveTimestamps();
+            
+            for (int i = 0; i < moves.size(); i++) {
+                ChessMove move = moves.get(i);
+                
+                String fenBefore = i < fenHistory.size() ? fenHistory.get(i) : "unknown";
+                String fenAfter = (i + 1) < fenHistory.size() ? fenHistory.get(i + 1) : game.getBoard().toFEN();
+                
+                long moveTime = i < moveTimestamps.size() ? moveTimestamps.get(i) : System.currentTimeMillis();
+                
+                long previousMoveTime = i > 0 && (i - 1) < moveTimestamps.size() ? 
+                    moveTimestamps.get(i - 1) : game.getStartTime();
+                int moveTimeMs = (int)(moveTime - previousMoveTime);
+                
+                GameHistory.MoveRecord record = new GameHistory.MoveRecord(
+                    move,
+                    move.toNotation(),
+                    fenBefore,
+                    fenAfter,
+                    game.getWhiteTimeLeft(),
+                    game.getBlackTimeLeft(),
+                    moveTimeMs,
+                    move.isCheck,
+                    move.isCheckmate,
+                    move.isCapture,
+                    move.isCastling,
+                    move.isEnPassant,
+                    move.promotionPiece != null,
+                    java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(moveTime), java.time.ZoneOffset.UTC)
+                );
+                moveRecords.add(record);
+            }
+            
+            PlayerData whiteData = game.getWhitePlayer() != null ? getPlayerData(game.getWhitePlayer()) : null;
+            PlayerData blackData = game.getBlackPlayer() != null ? getPlayerData(game.getBlackPlayer()) : null;
+            int originalWhiteElo = whiteData != null ? whiteData.elo : 1200;
+            int originalBlackElo = blackData != null ? blackData.elo : 1200;
+            
+            boolean whiteWon = game.getBoard().getGameState().name().contains("WHITE_WINS");
+            boolean blackWon = game.getBoard().getGameState().name().contains("BLACK_WINS");
+            boolean isDraw = game.getBoard().getGameState().name().contains("DRAW") || 
+                           game.getBoard().getGameState().name().contains("STALEMATE");
+            
+            double result = whiteWon ? 1.0 : (blackWon ? 0.0 : 0.5);
+            
+            int whiteEloChange = 0;
+            int blackEloChange = 0;
+            if (whiteData != null && blackData != null) {
+                double[] newElos = calculateELO(whiteData.elo, blackData.elo, whiteData.gamesPlayed, blackData.gamesPlayed, result);
+                whiteEloChange = (int)(newElos[0] - whiteData.elo);
+                blackEloChange = (int)(newElos[1] - blackData.elo);
+            }
+            
+            GameHistory gameHistory = new GameHistory(
+                game.getGameId(),
+                game.getWhitePlayer() != null ? game.getWhitePlayer().getUUID() : UUID.randomUUID(),
+                game.getBlackPlayer() != null ? game.getBlackPlayer().getUUID() : UUID.randomUUID(),
+                game.getWhitePlayer() != null ? game.getWhitePlayer().getName().getString() : "Chess Bot",
+                game.getBlackPlayer() != null ? game.getBlackPlayer().getName().getString() : "Chess Bot",
+                game.getTimeControl(),
+                java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(game.getStartTime()), java.time.ZoneOffset.UTC),
+                java.time.LocalDateTime.now(),
+                game.getBoard().getGameState(),
+                fenHistory.isEmpty() ? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" : fenHistory.get(0),
+                moveRecords,
+                originalWhiteElo,
+                originalBlackElo,
+                whiteEloChange,
+                blackEloChange,
+                true,
+                game.getHintsAllowed(),
+                game.getWhiteHintsUsed(),
+                game.getBlackHintsUsed(),
+                !game.getBetItems().isEmpty(),
+                game.getBoard().getGameState().name()
+            );
+            
+            if (matchHistoryManager != null) {
+                matchHistoryManager.saveGameHistory(gameHistory);
+            }
+            
+            updatePlayerStatistics(gameHistory);
+            
+        } catch (Exception e) {
+            System.err.println("[GUIChess] Failed to save game history for " + game.getGameId() + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Updates player statistics based on completed game.
+     */
+    private void updatePlayerStatistics(GameHistory gameHistory) {
+        ServerPlayer whitePlayer = server.getPlayerList().getPlayer(gameHistory.whitePlayerId);
+        ServerPlayer blackPlayer = server.getPlayerList().getPlayer(gameHistory.blackPlayerId);
+        
+        PlayerData whiteData = whitePlayer != null ? getPlayerData(whitePlayer) : null;
+        PlayerData blackData = blackPlayer != null ? getPlayerData(blackPlayer) : null;
+        
+        if (whiteData != null || blackData != null) {
+            boolean whiteWon = gameHistory.finalResult.name().contains("WHITE_WINS");
+            boolean blackWon = gameHistory.finalResult.name().contains("BLACK_WINS");
+            boolean isDraw = gameHistory.finalResult.name().contains("DRAW") || 
+                           gameHistory.finalResult.name().contains("STALEMATE");
+            
+            double result = whiteWon ? 1.0 : (blackWon ? 0.0 : 0.5);
+            
+            if (whiteData != null && blackData != null) {
+                double[] newElos = calculateELO(whiteData.elo, blackData.elo, whiteData.gamesPlayed, blackData.gamesPlayed, result);
+                
+                whiteData.elo = (int)newElos[0];
+                blackData.elo = (int)newElos[1];
+                
+                whiteData.updateAfterGame(gameHistory, whiteWon, isDraw);
+                blackData.updateAfterGame(gameHistory, blackWon, isDraw);
+                
+                if (playerDataStorage != null) {
+                    playerDataStorage.updatePlayerData(whiteData);
+                    playerDataStorage.updatePlayerData(blackData);
+                }
+            } else if (whiteData != null) {
+                whiteData.updateAfterGame(gameHistory, whiteWon, isDraw);
+                if (playerDataStorage != null) {
+                    playerDataStorage.updatePlayerData(whiteData);
+                }
+            } else if (blackData != null) {
+                blackData.updateAfterGame(gameHistory, blackWon, isDraw);
+                if (playerDataStorage != null) {
+                    playerDataStorage.updatePlayerData(blackData);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Calculates expected score for a player against an opponent.
+     */
+    private double expectedScore(int playerRating, int opponentRating) {
+        return 1.0 / (1.0 + Math.pow(10.0, (double)(opponentRating - playerRating) / 400.0));
+    }
+    
+    /**
+     * Calculates new rating for a player.
+     */
+    private double newRating(double expectedScore, double actualScore, int playerRating, double kFactor) {
+        return playerRating + kFactor * (actualScore - expectedScore);
+    }
+    
+    /**
+     * Determines K-factor based on FIDE rules.
+     */
+    private double playerKFactor(int playerRating, int totalGamesPlayed) {
+        if (playerRating < 2400 && totalGamesPlayed < 30) {
+            return 40.0;
+        } else if (playerRating < 2400 && totalGamesPlayed >= 30) {
+            return 20.0;
+        }
+        return 10.0;
+    }
+
+    /**
+     * Calculates ELO rating changes for both players based on game result using FIDE rules.
+     * 
+     * @param whiteELO current white player ELO
+     * @param blackELO current black player ELO  
+     * @param whiteGamesPlayed number of games white player has played
+     * @param blackGamesPlayed number of games black player has played
+     * @param result game result (1.0 = white win, 0.5 = draw, 0.0 = black win)
+     * @return array with new white ELO and new black ELO
+     */
+    private double[] calculateELO(int whiteELO, int blackELO, int whiteGamesPlayed, int blackGamesPlayed, double result) {
+        double expectedWhite = expectedScore(whiteELO, blackELO);
+        double expectedBlack = expectedScore(blackELO, whiteELO);
+        
+        double whiteKFactor = playerKFactor(whiteELO, whiteGamesPlayed);
+        double blackKFactor = playerKFactor(blackELO, blackGamesPlayed);
+        
+        double newWhiteELO = newRating(expectedWhite, result, whiteELO, whiteKFactor);
+        double newBlackELO = newRating(expectedBlack, 1.0 - result, blackELO, blackKFactor);
+
+        return new double[]{newWhiteELO, newBlackELO};
+    }
+    
+    /**
+     * Shows post-game analysis options to players.
+     */
+    private void showPostGameAnalysisOptions(ChessGame game) {
+        if (game.getWhitePlayer() != null && !game.getWhitePlayer().hasDisconnected()) {
+            game.getWhitePlayer().sendSystemMessage(Component.literal("§aGame finished! Use §e/chess analyze §ato review your game with computer analysis."));
+        }
+        
+        if (game.getBlackPlayer() != null && !game.getBlackPlayer().hasDisconnected()) {
+            game.getBlackPlayer().sendSystemMessage(Component.literal("§aGame finished! Use §e/chess analyze §ato review your game with computer analysis."));
+        }
+        
+        scheduler.schedule(() -> {
+        }, 5, TimeUnit.SECONDS);
+    }
+    
+    /**
+     * Opens match analysis GUI for a player's recent game.
+     */
+    public void openMatchAnalysis(ServerPlayer player, UUID gameId) {
+        if (matchHistoryManager == null) {
+            player.sendSystemMessage(Component.literal("§cMatch history not available."));
+            return;
+        }
+        
+        GameHistory gameHistory = matchHistoryManager.loadGameHistory(gameId);
+        if (gameHistory == null) {
+            player.sendSystemMessage(Component.literal("§cGame not found."));
+            return;
+        }
+        
+        if (!gameHistory.whitePlayerId.equals(player.getUUID()) && 
+            !gameHistory.blackPlayerId.equals(player.getUUID())) {
+            player.sendSystemMessage(Component.literal("§cYou were not a participant in this game."));
+            return;
+        }
+        
+        MatchAnalysisGUI analysisGUI = new MatchAnalysisGUI(player, gameHistory);
+        analysisGUI.open();
+    }
+    
+    public MatchHistoryManager getMatchHistoryManager() {
+        return matchHistoryManager;
     }
 
     public Map<UUID, ChessGame> getActiveGames() { return activeGames; }

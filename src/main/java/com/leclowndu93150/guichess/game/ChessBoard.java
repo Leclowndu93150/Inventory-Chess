@@ -31,7 +31,8 @@ public class ChessBoard {
 
     private ChessPosition enPassantTarget = null;
     private List<ChessMove> moveHistory = new ArrayList<>();
-    private List<String> positionHistoryFenOnly = new ArrayList<>(); // Store only board state for threefold
+    private List<String> positionHistoryFenOnly = new ArrayList<>();
+    private List<String> fullFenHistory = new ArrayList<>();
 
     private int halfMoveClock = 0;
     private int fullMoveNumber = 1;
@@ -49,6 +50,7 @@ public class ChessBoard {
         board[56] = ChessPiece.BLACK_ROOK; board[57] = ChessPiece.BLACK_KNIGHT; board[58] = ChessPiece.BLACK_BISHOP; board[59] = ChessPiece.BLACK_QUEEN; board[60] = ChessPiece.BLACK_KING; board[61] = ChessPiece.BLACK_BISHOP; board[62] = ChessPiece.BLACK_KNIGHT; board[63] = ChessPiece.BLACK_ROOK;
 
         positionHistoryFenOnly.add(boardToFENBoardPart());
+        fullFenHistory.add(toFEN()); // Store initial position FEN
     }
 
     public ChessPiece getPiece(ChessPosition pos) {
@@ -124,6 +126,7 @@ public class ChessBoard {
         currentTurn = currentTurn.opposite();
         moveHistory.add(move);
         positionHistoryFenOnly.add(boardToFENBoardPart());
+        fullFenHistory.add(toFEN()); // Store complete FEN after move
         updateGameState();
         return true;
     }
@@ -706,6 +709,7 @@ public class ChessBoard {
         copy.fullMoveNumber = this.fullMoveNumber;
         copy.moveHistory = new ArrayList<>(this.moveHistory);
         copy.positionHistoryFenOnly = new ArrayList<>(this.positionHistoryFenOnly);
+        copy.fullFenHistory = new ArrayList<>(this.fullFenHistory);
         return copy;
     }
 
@@ -765,7 +769,9 @@ public class ChessBoard {
     public PieceColor getCurrentTurn() { return currentTurn; }
     public void setCurrentTurn(PieceColor turn) { this.currentTurn = turn; }
     public GameState getGameState() { return gameState; }
+    public void setGameState(GameState gameState) { this.gameState = gameState; }
     public List<ChessMove> getMoveHistory() { return Collections.unmodifiableList(moveHistory); }
+    public List<String> getFenHistory() { return Collections.unmodifiableList(fullFenHistory); }
     public int getHalfMoveClock() { return halfMoveClock; }
     public int getFullMoveNumber() { return fullMoveNumber; }
     public ChessPosition getEnPassantTarget() { return enPassantTarget; }

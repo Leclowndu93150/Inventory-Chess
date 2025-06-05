@@ -2,6 +2,8 @@ package com.leclowndu93150.guichess.command;
 
 import com.leclowndu93150.guichess.chess.pieces.PieceColor;
 import com.leclowndu93150.guichess.chess.util.TimeControl;
+import com.leclowndu93150.guichess.data.GameHistory;
+import com.leclowndu93150.guichess.data.MatchHistoryManager;
 import com.leclowndu93150.guichess.data.PlayerData;
 import com.leclowndu93150.guichess.engine.StockfishIntegration;
 import com.leclowndu93150.guichess.game.*;
@@ -236,7 +238,6 @@ public class ChessCommands {
             return 0;
         }
         
-        // Open the new challenge flow GUI
         ChallengeFlowGUI challengeGUI = new ChallengeFlowGUI(player);
         challengeGUI.open();
         
@@ -257,7 +258,6 @@ public class ChessCommands {
             return 0;
         }
 
-        // Open the challenge accept GUI for betting and review
         ChallengeAcceptGUI acceptGUI = new ChallengeAcceptGUI(player, challengeToAccept);
         acceptGUI.open();
         
@@ -279,7 +279,6 @@ public class ChessCommands {
         }
 
         if (gameManager.declineChallenge(player, challengeToDecline)) {
-            // Message is sent by GameManager.declineChallenge
             return 1;
         } else {
             context.getSource().sendFailure(Component.literal("§cFailed to decline challenge."));
@@ -324,7 +323,6 @@ public class ChessCommands {
 
 
         if (game.offerDraw(player)) {
-            // Message handled by game.offerDraw
             return 1;
         } else {
             context.getSource().sendFailure(Component.literal("§cFailed to offer draw (e.g., already offered, or game state issues)."));
@@ -399,25 +397,67 @@ public class ChessCommands {
     }
 
     private static int showGameHistory(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-        context.getSource().sendSuccess(() -> Component.literal("§7Game history feature coming soon! (Check server files for saved games)"), false);
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        MatchHistoryManager historyManager = GameManager.getInstance().getMatchHistoryManager();
+        
+        if (historyManager == null) {
+            context.getSource().sendFailure(Component.literal("§cMatch history not available."));
+            return 0;
+        }
+        
+        List<GameHistory> recentGames = historyManager.getRecentPlayerGames(player.getUUID(), 5);
+        
+        if (recentGames.isEmpty()) {
+            context.getSource().sendSuccess(() -> Component.literal("§7You haven't played any games yet."), false);
+            return 1;
+        }
+        
+        StringBuilder message = new StringBuilder("§6=== Your Recent Games ===\n");
+        for (int i = 0; i < recentGames.size(); i++) {
+            GameHistory game = recentGames.get(i);
+            String opponent = game.getOpponentName(player.getUUID());
+            String result = game.getResultString();
+            String date = game.getFormattedDate();
+            
+            message.append(String.format("§7%d. §f%s vs %s §7- %s §7(%s)\n",
+                i + 1, game.isPlayerWhite(player.getUUID()) ? "You" : opponent, 
+                game.isPlayerWhite(player.getUUID()) ? opponent : "You", result, date));
+        }
+        
+        message.append("\n§7Use §e/chess analyze §7to review a game with computer analysis!");
+        
+        context.getSource().sendSuccess(() -> Component.literal(message.toString()), false);
         return 1;
     }
 
     private static int analyzeCurrentGame(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        ChessGame game = GameManager.getInstance().getPlayerGame(player);
+        ChessGame currentGame = GameManager.getInstance().getPlayerGame(player);
+        MatchHistoryManager historyManager = GameManager.getInstance().getMatchHistoryManager();
 
-        if (game == null) {
-            context.getSource().sendFailure(Component.literal("§cYou are not in a game!"));
+        // Check if player is in an active game
+        if (currentGame != null && currentGame.isGameActive()) {
+            context.getSource().sendFailure(Component.literal("§cCannot analyze during an active game. Finish your game first."));
             return 0;
         }
 
-        if (!game.isGameActive()) {
-            game.enableAnalysisMode();
-            context.getSource().sendSuccess(() -> Component.literal("§dPost-game analysis mode enabled! You can now move pieces freely (not rated)."), false);
-        } else {
-            context.getSource().sendFailure(Component.literal("§cCannot enter analysis mode for an ongoing game. This is for post-game review."));
+        if (historyManager == null) {
+            context.getSource().sendFailure(Component.literal("§cMatch history not available."));
+            return 0;
         }
+
+        // Get player's most recent game for analysis
+        List<GameHistory> recentGames = historyManager.getRecentPlayerGames(player.getUUID(), 1);
+        
+        if (recentGames.isEmpty()) {
+            context.getSource().sendFailure(Component.literal("§cNo games found to analyze."));
+            return 0;
+        }
+
+        GameHistory mostRecentGame = recentGames.get(0);
+        GameManager.getInstance().openMatchAnalysis(player, mostRecentGame.gameId);
+        
+        context.getSource().sendSuccess(() -> Component.literal("§aOpening analysis for your most recent game..."), false);
         return 1;
     }
 
@@ -512,7 +552,7 @@ public class ChessCommands {
 
     private static int reloadData(CommandContext<CommandSourceStack> context) {
         // GameManager.getInstance().loadPlayerData(); // Already saved periodically and on shutdown/load
-        GameManager.getInstance().savePlayerData(); // Force a save
+        GameManager.getInstance().markDataDirty(); // Force a save
         context.getSource().sendSuccess(() -> Component.literal("§aPlayer data saved. It loads automatically on server start."), false);
         return 1;
     }
@@ -536,7 +576,7 @@ public class ChessCommands {
 
             PlayerData data = GameManager.getInstance().getPlayerData(target);
             data.elo = newELO;
-            GameManager.getInstance().savePlayerData(); // Save immediately after admin change
+            GameManager.getInstance().markDataDirty(); // Save immediately after admin change
 
             context.getSource().sendSuccess(() -> Component.literal(
                     "§aSet " + target.getName().getString() + "'s ELO to " + newELO

@@ -20,27 +20,13 @@ import net.minecraft.nbt.StringTag;
 import java.util.*;
 
 /**
- * Manages a chess game session between two players with timing, GUI updates, and game state.
- * 
- * Core responsibilities:
- * - Move validation and execution
- * - Time control management
- * - Player interaction (selection, promotion, offers)
- * - GUI synchronization
- * - Game ending and ELO calculation
- * - Analysis mode support
- * 
- * Supports:
- * - Human vs Human games
- * - Hint system
- * - Draw offers and resignation
- * - Betting system
- * - Spectator mode
+ * Manages a chess game session between two participants with timing, GUI updates, and game state.
+ * Supports both human players and chess bots as participants.
  */
 public class ChessGame {
     private final UUID gameId;
-    private final ServerPlayer whitePlayer;
-    private final ServerPlayer blackPlayer;
+    private final GameParticipant whiteParticipant;
+    private final GameParticipant blackParticipant;
     private final TimeControl timeControl;
     private final long startTime;
 
@@ -49,50 +35,63 @@ public class ChessGame {
     private int blackTimeLeft;
     private boolean gameActive = true;
 
-    // Per-player selection state instead of shared
     private ChessPosition whiteSelectedSquare = null;
     private Set<ChessPosition> whiteValidMoves = new HashSet<>();
     private ChessPosition blackSelectedSquare = null;
     private Set<ChessPosition> blackValidMoves = new HashSet<>();
 
     private boolean drawOffered = false;
-    private ServerPlayer drawOfferer = null;
+    private GameParticipant drawOfferer = null;
     private boolean resignOffered = false;
-    private ServerPlayer resignOfferer = null;
+    private GameParticipant resignOfferer = null;
 
     private boolean analysisMode = false;
     private Map<String, Object> analysisData = new HashMap<>();
     protected boolean timerStarted = false;
     
-    // Hint system
     private int hintsAllowed = 0;
     private int whiteHintsUsed = 0;
     private int blackHintsUsed = 0;
     
-    // Betting system
     private List<ItemStack> betItems = new ArrayList<>();
+    
+    private List<Long> moveTimestamps = new ArrayList<>();
+    private long lastMoveTime = 0;
 
-    public ChessGame(ServerPlayer whitePlayer, ServerPlayer blackPlayer, TimeControl timeControl) {
-        this(whitePlayer, blackPlayer, timeControl, 0);
+    public ChessGame(GameParticipant whiteParticipant, GameParticipant blackParticipant, TimeControl timeControl) {
+        this(whiteParticipant, blackParticipant, timeControl, 0);
     }
     
-    public ChessGame(ServerPlayer whitePlayer, ServerPlayer blackPlayer, TimeControl timeControl, int hintsAllowed) {
+    public ChessGame(GameParticipant whiteParticipant, GameParticipant blackParticipant, TimeControl timeControl, int hintsAllowed) {
         this.gameId = UUID.randomUUID();
-        this.whitePlayer = whitePlayer;
-        this.blackPlayer = blackPlayer;
+        this.whiteParticipant = whiteParticipant;
+        this.blackParticipant = blackParticipant;
         this.timeControl = timeControl;
         this.startTime = System.currentTimeMillis();
         this.hintsAllowed = hintsAllowed;
 
         this.board = new ChessBoard();
-        if (timeControl.initialSeconds == -1) { // Unlimited time
-            this.whiteTimeLeft = Integer.MAX_VALUE; // Effectively unlimited
+        if (timeControl.initialSeconds == -1) {
+            this.whiteTimeLeft = Integer.MAX_VALUE;
             this.blackTimeLeft = Integer.MAX_VALUE;
         } else {
             this.whiteTimeLeft = timeControl.initialSeconds;
             this.blackTimeLeft = timeControl.initialSeconds;
         }
+        
+        this.lastMoveTime = this.startTime;
     }
+    
+    public ServerPlayer getWhitePlayer() {
+        return whiteParticipant instanceof HumanPlayer ? ((HumanPlayer) whiteParticipant).getServerPlayer() : null;
+    }
+    
+    public ServerPlayer getBlackPlayer() {
+        return blackParticipant instanceof HumanPlayer ? ((HumanPlayer) blackParticipant).getServerPlayer() : null;
+    }
+    
+    public GameParticipant getWhiteParticipant() { return whiteParticipant; }
+    public GameParticipant getBlackParticipant() { return blackParticipant; }
 
     /**
      * Attempts to make a move for the specified player.
@@ -132,23 +131,26 @@ public class ChessGame {
         }
 
         if (board.makeMove(legalMoveToMake)) {
+            long currentTime = System.currentTimeMillis();
+            moveTimestamps.add(currentTime);
+            lastMoveTime = currentTime;
+            
             updateTimersAfterMove();
 
-            // Clear all selections after move
             clearAllSelections();
             
-            // Start timer after white's first move
             if (!timerStarted && board.getCurrentTurn() == PieceColor.BLACK) {
                 timerStarted = true;
             }
 
-            if (drawOffered && getOpponent(player).equals(drawOfferer)) {
-                // If a move is made, any pending draw offer to the current player is implicitly declined.
-                ServerPlayer opponent = drawOfferer;
-                drawOffered = false;
-                drawOfferer = null;
-                if (opponent != null) {
-                    opponent.sendSystemMessage(Component.literal("§eYour draw offer was implicitly declined by " + player.getName().getString() + " making a move."));
+            if (drawOffered && drawOfferer instanceof HumanPlayer) {
+                ServerPlayer drawOfferingPlayer = ((HumanPlayer) drawOfferer).getServerPlayer();
+                if (getOpponent(player).equals(drawOfferingPlayer)) {
+                    drawOffered = false;
+                    drawOfferer = null;
+                    if (drawOfferingPlayer != null) {
+                        drawOfferingPlayer.sendSystemMessage(Component.literal("§eYour draw offer was implicitly declined by " + player.getName().getString() + " making a move."));
+                    }
                 }
             }
 
@@ -162,7 +164,7 @@ public class ChessGame {
     }
 
     protected void updateTimersAfterMove() {
-        if (timeControl.initialSeconds == -1) return; // No increment for unlimited time
+        if (timeControl.initialSeconds == -1) return;
 
         if (board.getCurrentTurn() == PieceColor.BLACK) {
             whiteTimeLeft += timeControl.incrementSeconds;
@@ -180,8 +182,8 @@ public class ChessGame {
             return;
         }
 
-        if (timeControl.initialSeconds == -1) return; // No ticking for unlimited time
-        if (!timerStarted) return; // Don't tick until white makes first move
+        if (timeControl.initialSeconds == -1) return;
+        if (!timerStarted) return;
 
         if (board.getCurrentTurn() == PieceColor.WHITE) {
             if (whiteTimeLeft > 0) {
@@ -213,14 +215,16 @@ public class ChessGame {
     }
 
     protected void endGame(GameState finalState) {
-        if (!gameActive) return; // Prevent multiple endGame calls
+        if (!gameActive) return;
         gameActive = false;
+        
+        board.setGameState(finalState);
 
         updateELORatings(finalState);
         awardBetIfNeeded(finalState);
         saveGameHistory(finalState);
         notifyGameEnd(finalState);
-        updatePlayerGUIs(); // Final GUI update to show game over state
+        updatePlayerGUIs();
 
         GameManager.getInstance().scheduleGameCleanup(this, 15);
     }
@@ -233,36 +237,37 @@ public class ChessGame {
             case CHECKMATE_WHITE_WINS:
             case BLACK_RESIGNED:
             case BLACK_TIME_OUT:
-                winner = whitePlayer;
+                winner = getWhitePlayer();
                 break;
             case CHECKMATE_BLACK_WINS:
             case WHITE_RESIGNED:
             case WHITE_TIME_OUT:
-                winner = blackPlayer;
+                winner = getBlackPlayer();
                 break;
             default:
-                // Draw - return half to each player
                 List<ItemStack> allItems = getBetItems();
                 int halfPoint = allItems.size() / 2;
                 
-                // Give first half to white
                 for (int i = 0; i < halfPoint; i++) {
                     ItemStack item = allItems.get(i);
-                    if (!whitePlayer.getInventory().add(item.copy())) {
+                    ServerPlayer whitePlayer = getWhitePlayer();
+                    if (whitePlayer != null && !whitePlayer.getInventory().add(item.copy())) {
                         whitePlayer.drop(item.copy(), false);
                     }
                 }
                 
-                // Give second half to black
                 for (int i = halfPoint; i < allItems.size(); i++) {
                     ItemStack item = allItems.get(i);
-                    if (!blackPlayer.getInventory().add(item.copy())) {
+                    ServerPlayer blackPlayer = getBlackPlayer();
+                    if (blackPlayer != null && !blackPlayer.getInventory().add(item.copy())) {
                         blackPlayer.drop(item.copy(), false);
                     }
                 }
                 
-                whitePlayer.sendSystemMessage(Component.literal("§7Draw - bet items split between players."));
-                blackPlayer.sendSystemMessage(Component.literal("§7Draw - bet items split between players."));
+                ServerPlayer whitePlayer = getWhitePlayer();
+                ServerPlayer blackPlayer = getBlackPlayer();
+                if (whitePlayer != null) whitePlayer.sendSystemMessage(Component.literal("§7Draw - bet items split between players."));
+                if (blackPlayer != null) blackPlayer.sendSystemMessage(Component.literal("§7Draw - bet items split between players."));
                 betItems.clear();
                 return;
         }
@@ -273,6 +278,12 @@ public class ChessGame {
     }
 
     private void updateELORatings(GameState finalState) {
+        if (getWhitePlayer() == null || getBlackPlayer() == null) {
+            return;
+        }
+        
+        ServerPlayer whitePlayer = getWhitePlayer();
+        ServerPlayer blackPlayer = getBlackPlayer();
         PlayerData whiteData = GameManager.getInstance().getPlayerData(whitePlayer);
         PlayerData blackData = GameManager.getInstance().getPlayerData(blackPlayer);
 
@@ -284,12 +295,12 @@ public class ChessGame {
             case CHECKMATE_BLACK_WINS, WHITE_RESIGNED, WHITE_TIME_OUT:
                 result = 0.0;
                 break;
-            default: // All draws
+            default:
                 result = 0.5;
                 break;
         }
 
-        double[] newRatings = calculateELO(whiteData.elo, blackData.elo, result);
+        double[] newRatings = calculateELO(whiteData.elo, blackData.elo, whiteData.gamesPlayed, blackData.gamesPlayed, result);
 
         whiteData.elo = (int) Math.round(newRatings[0]);
         blackData.elo = (int) Math.round(newRatings[1]);
@@ -307,19 +318,29 @@ public class ChessGame {
             blackData.draws++;
         }
 
-        GameManager.getInstance().savePlayerData();
+        GameManager.getInstance().markDataDirty();
     }
 
-    private double[] calculateELO(int whiteELO, int blackELO, double result) {
-        double kFactor = 32.0;
-
+    private double[] calculateELO(int whiteELO, int blackELO, int whiteGamesPlayed, int blackGamesPlayed, double result) {
         double expectedWhite = 1.0 / (1.0 + Math.pow(10.0, (double)(blackELO - whiteELO) / 400.0));
-        double expectedBlack = 1.0 - expectedWhite;
-
-        double newWhiteELO = whiteELO + kFactor * (result - expectedWhite);
-        double newBlackELO = blackELO + kFactor * ((1.0 - result) - expectedBlack);
+        double expectedBlack = 1.0 / (1.0 + Math.pow(10.0, (double)(whiteELO - blackELO) / 400.0));
+        
+        double whiteKFactor = getPlayerKFactor(whiteELO, whiteGamesPlayed);
+        double blackKFactor = getPlayerKFactor(blackELO, blackGamesPlayed);
+        
+        double newWhiteELO = whiteELO + whiteKFactor * (result - expectedWhite);
+        double newBlackELO = blackELO + blackKFactor * ((1.0 - result) - expectedBlack);
 
         return new double[]{newWhiteELO, newBlackELO};
+    }
+    
+    private double getPlayerKFactor(int playerRating, int totalGamesPlayed) {
+        if (playerRating < 2400 && totalGamesPlayed < 30) {
+            return 40.0;
+        } else if (playerRating < 2400 && totalGamesPlayed >= 30) {
+            return 20.0;
+        }
+        return 10.0;
     }
 
     /**
@@ -337,15 +358,14 @@ public class ChessGame {
         PieceColor playerColor = getPlayerColor(player);
         PieceColor playerColorForSelection = analysisMode ? board.getCurrentTurn() : playerColor;
 
-        // Get player-specific selection state
         ChessPosition playerSelectedSquare = getPlayerSelectedSquare(player);
         Set<ChessPosition> playerValidMoves = getPlayerValidMoves(player);
 
-        // Priority 1: If we have a selection and this is a valid move (including captures), make the move
+        
         if (playerSelectedSquare != null && playerValidMoves.contains(position)) {
-            if (analysisMode) { // In analysis mode, just make the move for display
-                ChessMove tempMove = new ChessMove(playerSelectedSquare, position); // Simplified move for analysis display
-                board.makeMove(tempMove); // This won't affect real game state if board is a copy or analysis is separate
+            if (analysisMode) {
+                ChessMove tempMove = new ChessMove(playerSelectedSquare, position);
+                board.makeMove(tempMove);
                 clearPlayerSelection(player);
                 updatePlayerGUIs();
                 return true;
@@ -363,7 +383,6 @@ public class ChessGame {
             return makeMove(player, playerSelectedSquare, position, null);
         }
 
-        // Priority 2: If there's a piece at this position that belongs to the player, select it
         if (piece != null &&
                 ((playerColorForSelection == PieceColor.WHITE && piece.isWhite()) ||
                         (playerColorForSelection == PieceColor.BLACK && piece.isBlack()))) {
@@ -373,7 +392,6 @@ public class ChessGame {
             return true;
         }
 
-        // Priority 3: Deselect if clicking on invalid square
         clearPlayerSelection(player);
         updatePlayerGUIs();
         return true;
@@ -381,7 +399,7 @@ public class ChessGame {
 
     private Set<ChessPosition> getValidMovesFrom(ChessPosition from) {
         Set<ChessPosition> moves = new HashSet<>();
-        List<ChessMove> legalMoves = board.getLegalMoves(); // Considers current player's turn
+        List<ChessMove> legalMoves = board.getLegalMoves();
 
         PieceColor colorOfPieceAtFrom = null;
         ChessPiece pieceAtFrom = board.getPiece(from);
@@ -389,18 +407,15 @@ public class ChessGame {
             colorOfPieceAtFrom = pieceAtFrom.isWhite() ? PieceColor.WHITE : PieceColor.BLACK;
         }
 
-        // In analysis mode, show moves for the piece at 'from', regardless of whose turn it is in the main game.
         if (analysisMode && colorOfPieceAtFrom != null && colorOfPieceAtFrom != board.getCurrentTurn()) {
-            // If in analysis mode and selected piece is not of current turn, get its moves
-            ChessBoard tempBoard = board.copy(); // Create a copy to not mess with main board's turn
-            tempBoard.setCurrentTurn(colorOfPieceAtFrom); // Temporarily set turn
+            ChessBoard tempBoard = board.copy();
+            tempBoard.setCurrentTurn(colorOfPieceAtFrom);
             for (ChessMove move : tempBoard.getLegalMoves()) {
                 if (move.from.equals(from)) {
                     moves.add(move.to);
                 }
             }
         } else {
-            // Normal mode or analysis mode with piece of current turn
             for (ChessMove move : legalMoves) {
                 if (move.from.equals(from)) {
                     moves.add(move.to);
@@ -410,7 +425,6 @@ public class ChessGame {
         return moves;
     }
 
-    // Helper methods for per-player selection state
     private ChessPosition getPlayerSelectedSquare(ServerPlayer player) {
         PieceColor playerColor = getPlayerColor(player);
         if (playerColor == PieceColor.WHITE) {
@@ -471,7 +485,7 @@ public class ChessGame {
         if (!gameActive || drawOffered || analysisMode) return false;
 
         drawOffered = true;
-        drawOfferer = player;
+        drawOfferer = new HumanPlayer(player);
 
         ServerPlayer opponent = getOpponent(player);
         if (opponent != null) {
@@ -484,24 +498,25 @@ public class ChessGame {
     }
 
     public boolean respondToDraw(ServerPlayer player, boolean accept) {
-        if (!gameActive || !drawOffered || analysisMode || player.equals(drawOfferer)) {
+        if (!gameActive || !drawOffered || analysisMode || (drawOfferer instanceof HumanPlayer && ((HumanPlayer) drawOfferer).getServerPlayer().equals(player))) {
             return false;
         }
 
-        ServerPlayer opponentWhoOffered = drawOfferer;
+        GameParticipant opponentWhoOffered = drawOfferer;
+        ServerPlayer opponentPlayer = opponentWhoOffered instanceof HumanPlayer ? ((HumanPlayer) opponentWhoOffered).getServerPlayer() : null;
 
         if (accept) {
             player.sendSystemMessage(Component.literal("§aYou accepted the draw offer."));
-            if (opponentWhoOffered != null) {
-                opponentWhoOffered.sendSystemMessage(Component.literal("§a" + player.getName().getString() + " accepted your draw offer."));
+            if (opponentPlayer != null) {
+                opponentPlayer.sendSystemMessage(Component.literal("§a" + player.getName().getString() + " accepted your draw offer."));
             }
             endGame(GameState.DRAW_AGREED);
         } else {
             drawOffered = false;
             drawOfferer = null;
             player.sendSystemMessage(Component.literal("§cYou declined the draw offer."));
-            if (opponentWhoOffered != null) {
-                opponentWhoOffered.sendSystemMessage(Component.literal("§c" + player.getName().getString() + " declined your draw offer."));
+            if (opponentPlayer != null) {
+                opponentPlayer.sendSystemMessage(Component.literal("§c" + player.getName().getString() + " declined your draw offer."));
             }
         }
 
@@ -510,7 +525,7 @@ public class ChessGame {
     }
 
     public boolean cancelDrawOffer(ServerPlayer player) {
-        if (!gameActive || !drawOffered || analysisMode || !player.equals(drawOfferer)) {
+        if (!gameActive || !drawOffered || analysisMode || !(drawOfferer instanceof HumanPlayer && ((HumanPlayer) drawOfferer).getServerPlayer().equals(player))) {
             return false;
         }
         drawOffered = false;
@@ -529,7 +544,7 @@ public class ChessGame {
         if (!gameActive || resignOffered || analysisMode) return false;
 
         resignOffered = true;
-        resignOfferer = player;
+        resignOfferer = new HumanPlayer(player);
 
         player.sendSystemMessage(Component.literal("§cYou are about to resign. Click again to confirm."));
         updatePlayerGUIs();
@@ -546,7 +561,7 @@ public class ChessGame {
     }
     
     public boolean confirmResign(ServerPlayer player) {
-        if (!gameActive || !resignOffered || analysisMode || !player.equals(resignOfferer)) {
+        if (!gameActive || !resignOffered || analysisMode || !(resignOfferer instanceof HumanPlayer && ((HumanPlayer) resignOfferer).getServerPlayer().equals(player))) {
             return false;
         }
         
@@ -556,7 +571,7 @@ public class ChessGame {
     }
     
     public boolean cancelResign(ServerPlayer player) {
-        if (!resignOffered || !player.equals(resignOfferer)) {
+        if (!resignOffered || !(resignOfferer instanceof HumanPlayer && ((HumanPlayer) resignOfferer).getServerPlayer().equals(player))) {
             return false;
         }
         
@@ -572,7 +587,7 @@ public class ChessGame {
     }
     
     public ServerPlayer getResignOfferer() {
-        return resignOfferer;
+        return resignOfferer instanceof HumanPlayer ? ((HumanPlayer) resignOfferer).getServerPlayer() : null;
     }
     
     // Hint system methods
@@ -609,13 +624,15 @@ public class ChessGame {
     }
 
     public void enableAnalysisMode() {
-        if(gameActive) { // Can only enter analysis mode if game is over or was never for rating
+        if(gameActive) {
+            ServerPlayer whitePlayer = getWhitePlayer();
+            ServerPlayer blackPlayer = getBlackPlayer();
             if (whitePlayer != null) whitePlayer.sendSystemMessage(Component.literal("§dGame is now in analysis mode. Moves are not rated."));
             if (blackPlayer != null) blackPlayer.sendSystemMessage(Component.literal("§dGame is now in analysis mode. Moves are not rated."));
         }
         analysisMode = true;
         requestStockfishAnalysis();
-        updatePlayerGUIs(); // Update GUI to reflect analysis mode (e.g. different button states)
+        updatePlayerGUIs();
     }
 
     private void requestStockfishAnalysis() {
@@ -632,6 +649,8 @@ public class ChessGame {
     private void saveGameHistory(GameState finalState) {
         CompoundTag gameData = new CompoundTag();
         gameData.putString("gameId", gameId.toString());
+        ServerPlayer whitePlayer = getWhitePlayer();
+        ServerPlayer blackPlayer = getBlackPlayer();
         if (whitePlayer != null) gameData.putString("whitePlayerName", whitePlayer.getName().getString());
         if (whitePlayer != null) gameData.putString("whitePlayerUUID", whitePlayer.getUUID().toString());
         if (blackPlayer != null) gameData.putString("blackPlayerName", blackPlayer.getName().getString());
@@ -667,19 +686,21 @@ public class ChessGame {
             default -> "§7Game ended (" + finalState.name() + ")";
         };
 
+        ServerPlayer whitePlayer = getWhitePlayer();
+        ServerPlayer blackPlayer = getBlackPlayer();
         if (whitePlayer != null) whitePlayer.sendSystemMessage(Component.literal(message));
         if (blackPlayer != null) blackPlayer.sendSystemMessage(Component.literal(message));
     }
 
     private void updatePlayerGUIs() {
+        ServerPlayer whitePlayer = getWhitePlayer();
+        ServerPlayer blackPlayer = getBlackPlayer();
         ChessGUI whiteGUI = GameManager.getInstance().getPlayerGUI(whitePlayer);
         ChessGUI blackGUI = GameManager.getInstance().getPlayerGUI(blackPlayer);
 
         if (whiteGUI != null && whiteGUI.isOpen()) whiteGUI.updateBoard();
         if (blackGUI != null && blackGUI.isOpen()) blackGUI.updateBoard();
 
-        // Update spectator GUIs too
-        GameManager.getInstance().getActiveGames().get(gameId); // ensure game is fetched if needed
         GameManager.getInstance().updateSpectatorGUIs(this);
     }
     
@@ -689,7 +710,8 @@ public class ChessGame {
         ChessMove lastMove = board.getMoveHistory().get(board.getMoveHistory().size() - 1);
         GameState currentState = board.getGameState();
         
-        // Play move sound for both players
+        ServerPlayer whitePlayer = getWhitePlayer();
+        ServerPlayer blackPlayer = getBlackPlayer();
         if (whitePlayer != null) {
             ChessSoundManager.playMoveSound(whitePlayer, lastMove, currentState);
         }
@@ -706,15 +728,33 @@ public class ChessGame {
 
     public PieceColor getPlayerColor(ServerPlayer player) {
         if (player == null) return null;
+        ServerPlayer whitePlayer = getWhitePlayer();
+        ServerPlayer blackPlayer = getBlackPlayer();
         if (player.equals(whitePlayer)) return PieceColor.WHITE;
         if (player.equals(blackPlayer)) return PieceColor.BLACK;
+        return null;
+    }
+    
+    public PieceColor getParticipantColor(GameParticipant participant) {
+        if (participant == null) return null;
+        if (participant.equals(whiteParticipant)) return PieceColor.WHITE;
+        if (participant.equals(blackParticipant)) return PieceColor.BLACK;
         return null;
     }
 
     public ServerPlayer getOpponent(ServerPlayer player) {
         if (player == null) return null;
+        ServerPlayer whitePlayer = getWhitePlayer();
+        ServerPlayer blackPlayer = getBlackPlayer();
         if (player.equals(whitePlayer)) return blackPlayer;
         if (player.equals(blackPlayer)) return whitePlayer;
+        return null;
+    }
+    
+    public GameParticipant getOpponentParticipant(GameParticipant participant) {
+        if (participant == null) return null;
+        if (participant.equals(whiteParticipant)) return blackParticipant;
+        if (participant.equals(blackParticipant)) return whiteParticipant;
         return null;
     }
 
@@ -728,15 +768,14 @@ public class ChessGame {
 
     // Updated methods to use per-player selection state
     public UUID getGameId() { return gameId; }
-    public ServerPlayer getWhitePlayer() { return whitePlayer; }
-    public ServerPlayer getBlackPlayer() { return blackPlayer; }
     public ChessBoard getBoard() { return board; }
     public TimeControl getTimeControl() { return timeControl; }
     public boolean isGameActive() { return gameActive; }
     public int getWhiteTimeLeft() { return whiteTimeLeft; }
     public int getBlackTimeLeft() { return blackTimeLeft; }
+    public long getStartTime() { return startTime; }
+    public List<Long> getMoveTimestamps() { return Collections.unmodifiableList(moveTimestamps); }
 
-    // These methods now return player-specific selection state
     public ChessPosition getSelectedSquare(ServerPlayer player) {
         return getPlayerSelectedSquare(player);
     }
@@ -745,7 +784,6 @@ public class ChessGame {
         return getPlayerValidMoves(player);
     }
 
-    // Legacy methods for backward compatibility - default to white player for now
     @Deprecated
     public ChessPosition getSelectedSquare() {
         return whiteSelectedSquare;
@@ -757,18 +795,16 @@ public class ChessGame {
     }
 
     public boolean isDrawOffered() { return drawOffered; }
-    public ServerPlayer getDrawOfferer() { return drawOfferer; }
+    public ServerPlayer getDrawOfferer() { return drawOfferer instanceof HumanPlayer ? ((HumanPlayer) drawOfferer).getServerPlayer() : null; }
     public boolean isAnalysisMode() { return analysisMode; }
     public Map<String, Object> getAnalysisData() { return analysisData; }
     
-    // Hint system getters/setters
     public int getWhiteHintsUsed() { return whiteHintsUsed; }
     public int getBlackHintsUsed() { return blackHintsUsed; }
     
     public void incrementWhiteHints() { whiteHintsUsed++; }
     public void incrementBlackHints() { blackHintsUsed++; }
     
-    // Betting methods
     public void setBetItems(List<ItemStack> items) {
         this.betItems = new ArrayList<>(items);
     }
@@ -786,7 +822,6 @@ public class ChessGame {
         
         for (ItemStack item : betItems) {
             if (!winner.getInventory().add(item.copy())) {
-                // Drop on ground if inventory full
                 winner.drop(item.copy(), false);
             }
         }

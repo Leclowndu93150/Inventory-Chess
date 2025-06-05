@@ -18,22 +18,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChessBotGame extends ChessGame {
-    private final int botElo;
+    private final BotPlayer botPlayer;
     private final PieceColor botColor;
     private boolean isThinking = false;
     private CompletableFuture<Void> currentBotMove = null;
     
     private static final Pattern UCI_MOVE_PATTERN = Pattern.compile("([a-h][1-8])([a-h][1-8])([qrbn])?");
     
-    public ChessBotGame(ServerPlayer humanPlayer, PieceColor humanColor, TimeControl timeControl, int botElo, int hintsAllowed) {
-        super(
-            humanColor == PieceColor.WHITE ? humanPlayer : null,
-            humanColor == PieceColor.BLACK ? humanPlayer : null,
-            timeControl,
-            hintsAllowed
-        );
-        this.botElo = botElo;
-        this.botColor = humanColor == PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
+    public ChessBotGame(GameParticipant whiteParticipant, GameParticipant blackParticipant, TimeControl timeControl, int hintsAllowed) {
+        super(whiteParticipant, blackParticipant, timeControl, hintsAllowed);
+        if (whiteParticipant.isBot()) {
+            this.botPlayer = (BotPlayer) whiteParticipant;
+            this.botColor = PieceColor.WHITE;
+        } else {
+            this.botPlayer = (BotPlayer) blackParticipant;
+            this.botColor = PieceColor.BLACK;
+        }
         
         if (botColor == PieceColor.WHITE) {
             GameManager.getInstance().getServer().execute(() -> {
@@ -60,9 +60,11 @@ public class ChessBotGame extends ChessGame {
         if (isThinking || !isGameActive()) return;
         
         isThinking = true;
-        ServerPlayer humanPlayer = getHumanPlayer();
+        final ServerPlayer humanPlayer = getHumanPlayer();
         
-        humanPlayer.sendSystemMessage(Component.literal("§7Bot is thinking..."));
+        if (humanPlayer != null) {
+            humanPlayer.sendSystemMessage(Component.literal("§7Bot is thinking..."));
+        }
         
         if (currentBotMove != null && !currentBotMove.isDone()) {
             currentBotMove.cancel(true);
@@ -70,7 +72,7 @@ public class ChessBotGame extends ChessGame {
         
         String fen = board.toFEN();
         
-        configureStockfishForElo(botElo);
+        configureStockfishForElo(botPlayer.getTargetElo());
         
         currentBotMove = CompletableFuture
             .runAsync(() -> {
@@ -121,24 +123,24 @@ public class ChessBotGame extends ChessGame {
                                                 endGame(currentState);
                                             }
                                         } else {
-                                            humanPlayer.sendSystemMessage(Component.literal("§cBot move failed to execute!"));
+                                            if (humanPlayer != null) humanPlayer.sendSystemMessage(Component.literal("§cBot move failed to execute!"));
                                         }
                                     } else {
-                                        humanPlayer.sendSystemMessage(Component.literal("§cBot made invalid move!"));
+                                        if (humanPlayer != null) humanPlayer.sendSystemMessage(Component.literal("§cBot made invalid move!"));
                                     }
                                     isThinking = false;
                                 });
                             } else {
-                                humanPlayer.sendSystemMessage(Component.literal("§cBot failed to parse move!"));
+                                if (humanPlayer != null) humanPlayer.sendSystemMessage(Component.literal("§cBot failed to parse move!"));
                                 isThinking = false;
                             }
                         } else {
-                            humanPlayer.sendSystemMessage(Component.literal("§cBot failed to find a move!"));
+                            if (humanPlayer != null) humanPlayer.sendSystemMessage(Component.literal("§cBot failed to find a move!"));
                             isThinking = false;
                         }
                     })
                     .exceptionally(throwable -> {
-                        humanPlayer.sendSystemMessage(Component.literal("§cBot error: " + throwable.getMessage()));
+                        if (humanPlayer != null) humanPlayer.sendSystemMessage(Component.literal("§cBot error: " + throwable.getMessage()));
                         isThinking = false;
                         return null;
                     });
@@ -266,6 +268,10 @@ public class ChessBotGame extends ChessGame {
     }
     
     public String getBotName() {
-        return "Stockfish (ELO " + botElo + ")";
+        return botPlayer.getName();
+    }
+    
+    public BotPlayer getBotPlayer() {
+        return botPlayer;
     }
 }

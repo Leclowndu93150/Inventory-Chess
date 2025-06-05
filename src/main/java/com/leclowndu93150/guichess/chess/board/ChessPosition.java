@@ -1,5 +1,7 @@
 package com.leclowndu93150.guichess.chess.board;
 
+import net.minecraft.nbt.CompoundTag;
+
 /**
  * Represents a position on the chess board using file-rank coordinates.
  * 
@@ -47,5 +49,16 @@ public class ChessPosition {
     @Override
     public int hashCode() {
         return file * 8 + rank;
+    }
+
+    public CompoundTag toNBT() {
+        CompoundTag tag = new CompoundTag();
+        tag.putInt("file", file);
+        tag.putInt("rank", rank);
+        return tag;
+    }
+
+    public static ChessPosition fromNBT(CompoundTag tag) {
+        return new ChessPosition(tag.getInt("file"), tag.getInt("rank"));
     }
 }

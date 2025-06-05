@@ -27,33 +27,16 @@ public class ChessItemTooltipHandler {
     public static void onChessItemTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
         if (stack.isEmpty()) return;
-        
-        // Check if this is a clock item (any of the dye items used for clocks)
-        boolean isClockItem = false;
-        for (net.minecraft.world.item.Item clockItem : TimeHelper.getClockItems()) {
-            if (stack.is(clockItem)) {
-                isClockItem = true;
-                break;
-            }
-        }
+
         
         // Check if this is a chess item (gray dye)
-        if (!stack.is(Items.GRAY_DYE) && !isClockItem) return;
+        if (!stack.is(Items.GRAY_DYE)) return;
 
         CustomModelData cmd = stack.get(DataComponents.CUSTOM_MODEL_DATA);
         if (cmd == null) return;
 
         int modelData = cmd.value();
         List<Component> tooltip = event.getToolTip();
-        
-        // Check for clock items first
-        if (isClockItem) {
-            String clockInfo = TimeHelper.getClockDebugInfo(stack);
-            if (clockInfo != null) {
-                addClockTooltip(tooltip, clockInfo, modelData);
-                return;
-            }
-        }
 
         ChessPiece piece = getChessPieceByModelData(modelData);
         if (piece != null) {

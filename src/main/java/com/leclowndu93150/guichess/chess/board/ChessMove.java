@@ -1,6 +1,7 @@
 package com.leclowndu93150.guichess.chess.board;
 
 import com.leclowndu93150.guichess.chess.pieces.PieceType;
+import net.minecraft.nbt.CompoundTag;
 
 /**
  * Represents a chess move with all its properties and metadata.
@@ -68,5 +69,36 @@ public class ChessMove {
     public String toString() {
         return "ChessMove{" + from.toNotation() + "->" + to.toNotation() + 
                (promotionPiece != null ? "=" + promotionPiece : "") + "}";
+    }
+
+    public CompoundTag toNBT() {
+        CompoundTag tag = new CompoundTag();
+        tag.put("from", from.toNBT());
+        tag.put("to", to.toNBT());
+        if (promotionPiece != null) {
+            tag.putString("promotionPiece", promotionPiece.name());
+        }
+        tag.putBoolean("isCapture", isCapture);
+        tag.putBoolean("isEnPassant", isEnPassant);
+        tag.putBoolean("isCastling", isCastling);
+        tag.putBoolean("isCheck", isCheck);
+        tag.putBoolean("isCheckmate", isCheckmate);
+        return tag;
+    }
+
+    public static ChessMove fromNBT(CompoundTag tag) {
+        ChessPosition from = ChessPosition.fromNBT(tag.getCompound("from"));
+        ChessPosition to = ChessPosition.fromNBT(tag.getCompound("to"));
+        PieceType promotionPiece = tag.contains("promotionPiece") ? 
+            PieceType.valueOf(tag.getString("promotionPiece")) : null;
+        
+        return new ChessMove(
+            from, to, promotionPiece,
+            tag.getBoolean("isCapture"),
+            tag.getBoolean("isEnPassant"),
+            tag.getBoolean("isCastling"),
+            tag.getBoolean("isCheck"),
+            tag.getBoolean("isCheckmate")
+        );
     }
 }
