@@ -75,7 +75,7 @@ public class ChallengeConfigGUI extends SimpleGui {
     // Challenge configuration
     private OpponentType opponentType = OpponentType.PLAYER;
     private TimeControl selectedTimeControl = TimeControl.BLITZ_5_0;
-    private int hintsAllowed = 0; // 0-3 hints
+    private int hintsAllowed = 3; // 0-3 hints
     private int botElo = 1200; // For bot opponents
     private SideChoice sideChoice = SideChoice.RANDOM;
     private boolean bettingEnabled = false;

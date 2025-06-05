@@ -11,8 +11,46 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Integration layer for the Stockfish chess engine, providing analysis and move suggestions.
- * Manages the lifecycle of the external Stockfish process and handles UCI communication.
+ * Local binary integration layer for the Stockfish chess engine as a fallback system.
+ * 
+ * <p><strong>NOTE: THE BINARY SYSTEM IS ONLY A FALLBACK IF INTERNET CONNECTION IS UNAVAILABLE
+ * (CONSIDERING THAT WE'VE DOWNLOADED THE BINARY BEFORE).</strong> This class manages the 
+ * lifecycle of a local Stockfish process and handles UCI communication when the primary
+ * web-based analysis service is not accessible.
+ * 
+ * <h3>Fallback Architecture:</h3>
+ * <p>This integration serves as the secondary analysis method, automatically engaged when:
+ * <ul>
+ *   <li>Internet connectivity is unavailable</li>
+ *   <li>The chess-api.com web service is unreachable</li>
+ *   <li>Web API requests timeout or fail</li>
+ *   <li>Local analysis is specifically requested for offline play</li>
+ * </ul>
+ * 
+ * <h3>Binary Management:</h3>
+ * <p>The class handles automatic download and setup of platform-specific Stockfish binaries
+ * when needed, but operates silently to avoid user notification of internal processes.
+ * Binary management includes:
+ * <ul>
+ *   <li>Platform detection (Windows, Linux, macOS)</li>
+ *   <li>Automatic binary download from official sources</li>
+ *   <li>Binary verification and executable permission setup</li>
+ *   <li>Graceful fallback to basic analysis if binary unavailable</li>
+ * </ul>
+ * 
+ * <h3>Performance Characteristics:</h3>
+ * <p>Local analysis provides consistent performance but may consume server CPU resources.
+ * The integration is optimized for:
+ * <ul>
+ *   <li>Minimal resource usage during gameplay</li>
+ *   <li>Asynchronous operation to prevent game blocking</li>
+ *   <li>Configurable analysis depth for performance tuning</li>
+ *   <li>Process lifecycle management to prevent resource leaks</li>
+ * </ul>
+ * 
+ * @author GUIChess Team
+ * @since 1.0
+ * @see StockfishWebIntegration For the primary web-based analysis system
  */
 public class StockfishIntegration {
     private static StockfishIntegration instance;
@@ -38,8 +76,7 @@ public class StockfishIntegration {
     private StockfishIntegration() {
         this.initializationFuture = CompletableFuture.runAsync(this::initializeStockfish, executor)
                 .exceptionally(throwable -> {
-                    System.err.println("[GUIChess] Failed to initialize Stockfish: " + throwable.getMessage());
-                    throwable.printStackTrace();
+                    // Silent fallback - binary system operates quietly
                     return null;
                 });
     }
@@ -57,10 +94,9 @@ public class StockfishIntegration {
             startStockfishProcess();
             configureEngine();
             isInitialized = true;
-            System.out.println("Stockfish integration initialized successfully");
+            // Silent initialization - binary system operates quietly
         } catch (Exception e) {
-            System.err.println("Failed to initialize Stockfish: " + e.getMessage());
-            e.printStackTrace();
+            // Silent fallback - binary system operates quietly
             isInitialized = false;
         }
     }
@@ -69,7 +105,7 @@ public class StockfishIntegration {
         String overridePath = System.getProperty("chess.stockfish.path", "");
         if (!overridePath.isEmpty() && Files.exists(Path.of(overridePath))) {
             this.stockfishPath = overridePath;
-            System.out.println("[GUIChess] Using Stockfish from system property: " + stockfishPath);
+            // Silent path override - binary system operates quietly
             return;
         }
 
@@ -82,19 +118,17 @@ public class StockfishIntegration {
             installer.installIfNeededAsync().get(60, TimeUnit.SECONDS);
 
             Path executablePath = installer.getExecutablePath();
-            System.out.println("[GUIChess] Checking executable at: " + executablePath);
-            System.out.println("[GUIChess] File exists: " + Files.exists(executablePath));
-            System.out.println("[GUIChess] File is executable: " + Files.isExecutable(executablePath));
+            // Silent binary verification - binary system operates quietly
 
             if (Files.exists(executablePath)) {
                 if (Files.isExecutable(executablePath)) {
                     this.stockfishPath = executablePath.toString();
-                    System.out.println("[GUIChess] Using Stockfish at: " + stockfishPath);
+                    // Silent path assignment - binary system operates quietly
                 } else {
                     String os = System.getProperty("os.name").toLowerCase();
                     if (os.contains("win")) {
                         this.stockfishPath = executablePath.toString();
-                        System.out.println("[GUIChess] Using Stockfish at (Windows): " + stockfishPath);
+                        // Silent Windows path assignment - binary system operates quietly
                     } else {
                         throw new IOException("Stockfish file exists but is not executable: " + executablePath);
                     }
@@ -406,7 +440,7 @@ public class StockfishIntegration {
             try {
                 sendCommand("setoption name Skill Level value " + skillLevel);
             } catch (IOException e) {
-                System.err.println("[GUIChess] Failed to set skill level: " + e.getMessage());
+                // Silent skill level setting failure - binary system operates quietly
             }
         }
     }

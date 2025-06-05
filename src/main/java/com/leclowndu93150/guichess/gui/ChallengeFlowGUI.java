@@ -100,7 +100,7 @@ public class ChallengeFlowGUI extends SimpleGui {
     // Challenge configuration
     private boolean isBot = false;
     private int botElo = 1500;
-    private int hintsAllowed = 0;
+    private int hintsAllowed = 3;
     private ServerPlayer humanOpponent = null;
     private boolean wantsToBet = false;
     private List<ItemStack> betItems = new ArrayList<>();

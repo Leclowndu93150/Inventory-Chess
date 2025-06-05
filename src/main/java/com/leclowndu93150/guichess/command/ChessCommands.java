@@ -6,6 +6,7 @@ import com.leclowndu93150.guichess.data.GameHistory;
 import com.leclowndu93150.guichess.data.MatchHistoryManager;
 import com.leclowndu93150.guichess.data.PlayerData;
 import com.leclowndu93150.guichess.engine.StockfishIntegration;
+import com.leclowndu93150.guichess.engine.StockfishWebIntegration;
 import com.leclowndu93150.guichess.game.*;
 import com.leclowndu93150.guichess.gui.ChessGUI;
 import com.leclowndu93150.guichess.gui.ChallengeFlowGUI;
@@ -530,7 +531,7 @@ public class ChessCommands {
         }
 
 
-        StockfishIntegration.getInstance().requestHint(game.getBoard().toFEN(), hint -> {
+        StockfishWebIntegration.getInstance().requestHint(game.getBoard().toFEN(), hint -> {
             player.sendSystemMessage(Component.literal("§bHint: " + hint));
         });
 

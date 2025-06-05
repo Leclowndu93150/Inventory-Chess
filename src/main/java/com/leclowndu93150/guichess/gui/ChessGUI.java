@@ -10,6 +10,7 @@ import com.leclowndu93150.guichess.chess.util.GameState;
 import com.leclowndu93150.guichess.chess.util.GameUtility;
 import com.leclowndu93150.guichess.data.PlayerData;
 import com.leclowndu93150.guichess.engine.StockfishIntegration;
+import com.leclowndu93150.guichess.engine.StockfishWebIntegration;
 import com.leclowndu93150.guichess.game.ChessBoard;
 import com.leclowndu93150.guichess.game.ChessGame;
 import com.leclowndu93150.guichess.game.GameManager;
@@ -26,6 +27,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -91,6 +93,7 @@ public class ChessGUI extends SimpleGui {
     private ChessPosition promotionFrom;
     private ChessPosition promotionTo;
     private boolean autoReopen = true; // Can be disabled for death/respawn scenarios
+    private List<String> receivedHints = new ArrayList<>(); // Store actual hint moves
     
 
     public ChessGUI(ServerPlayer player, ChessGame game, PieceColor playerColor) {
@@ -442,6 +445,7 @@ public class ChessGUI extends SimpleGui {
         updateDrawButtons();
         updateResignButtons();
         updateAnalyzeButton();
+        updateHintButton();
     }
     
     protected void updateAnalyzeButton() {
@@ -460,8 +464,67 @@ public class ChessGUI extends SimpleGui {
                         player.sendSystemMessage(Component.literal("§cAnalysis is only available after the game ends!"));
                     }));
         } else {
-            setSlot(80, createUtilityButton(GameUtility.ANALYZE_POSITION, this::handleAnalyze));
+            setSlot(80, new GuiElementBuilder(Items.GRAY_DYE)
+                    .setCustomModelData(GameUtility.ANALYZE_POSITION.getModelData())
+                    .setName(Component.literal("§d🔍 Analyze"))
+                    .addLoreLine(Component.literal("§7Click to review this game"))
+                    .setCallback((index, type, actionType, gui) -> {
+                        ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
+                        handleAnalyze();
+                    }));
         }
+    }
+    
+    protected void updateHintButton() {
+        if (game == null || !game.isGameActive() || game.getHintsAllowed() <= 0) {
+            clearSlot(17);
+            return;
+        }
+        
+        PieceColor playerColor = game.getPlayerColor(player);
+        int hintsUsed = playerColor == PieceColor.WHITE ? game.getWhiteHintsUsed() : game.getBlackHintsUsed();
+        int hintsRemaining = game.getHintsAllowed() - hintsUsed;
+        
+        GuiElementBuilder hintButton = new GuiElementBuilder(Items.GRAY_DYE)
+                .setCustomModelData(GameUtility.STOCKFISH_HINT.getModelData())
+                .setName(Component.literal("§b💡 Hint (" + hintsRemaining + "/" + game.getHintsAllowed() + ")"))
+                .addLoreLine(Component.literal("§7Click to get a move suggestion"))
+                .addLoreLine(Component.literal("§7Hints remaining: §e" + hintsRemaining));
+        
+        // Add previous hints to tooltip
+        if (hintsUsed > 0) {
+            hintButton.addLoreLine(Component.literal("§7Previous hints:"));
+            for (int i = 0; i < hintsUsed; i++) {
+                hintButton.addLoreLine(Component.literal("§8  " + (i + 1) + ". " + getHintText(i)));
+            }
+        }
+        
+        if (hintsRemaining > 0 && (game.isPlayerTurn(player) || game.isAnalysisMode())) {
+            hintButton.setCallback((index, type, actionType, gui) -> {
+                ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
+                handleHint();
+            });
+        } else {
+            hintButton.addLoreLine(Component.literal(""))
+                     .addLoreLine(Component.literal(hintsRemaining <= 0 ? "§cNo hints remaining!" : "§cNot your turn!"))
+                     .setCallback((index, type, actionType, gui) -> {
+                         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.ERROR);
+                         if (hintsRemaining <= 0) {
+                             player.sendSystemMessage(Component.literal("§cYou have no hints remaining!"));
+                         } else {
+                             player.sendSystemMessage(Component.literal("§cIt's not your turn to get a hint."));
+                         }
+                     });
+        }
+        
+        setSlot(17, hintButton);
+    }
+    
+    private String getHintText(int hintIndex) {
+        if (hintIndex < receivedHints.size()) {
+            return receivedHints.get(hintIndex);
+        }
+        return "Loading hint...";
     }
     
     private void handleAnalyze() {
@@ -684,8 +747,13 @@ public class ChessGUI extends SimpleGui {
         }
         
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.HINT);
-        StockfishIntegration.getInstance().requestHint(getBoard().toFEN(), hint -> {
+        // Primary: Use web-based Stockfish for better performance
+        StockfishWebIntegration.getInstance().requestHint(getBoard().toFEN(), hint -> {
             player.sendSystemMessage(Component.literal("§bHint: " + hint));
+            // Store the actual hint for display in tooltip
+            receivedHints.add(hint);
+            // Update the hint button to show the new hint count and add this hint to tooltip
+            updateHintButton();
         });
     }
 

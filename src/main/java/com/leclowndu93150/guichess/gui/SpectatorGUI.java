@@ -4,6 +4,7 @@ import com.leclowndu93150.guichess.chess.board.ChessPosition;
 import com.leclowndu93150.guichess.chess.pieces.ChessPiece;
 import com.leclowndu93150.guichess.chess.pieces.PieceColor;
 import com.leclowndu93150.guichess.engine.StockfishIntegration;
+import com.leclowndu93150.guichess.engine.StockfishWebIntegration;
 import com.leclowndu93150.guichess.game.ChessGame;
 import com.leclowndu93150.guichess.game.GameManager;
 import com.leclowndu93150.guichess.util.ChessSoundManager;
@@ -194,7 +195,7 @@ public class SpectatorGUI extends ChessGUI {
     @Override
     protected void handleHint() {
         ChessSoundManager.playUISound(player, ChessSoundManager.UISound.HINT);
-        StockfishIntegration.getInstance().requestHint(getBoard().toFEN(), hint -> {
+        StockfishWebIntegration.getInstance().requestHint(getBoard().toFEN(), hint -> {
             player.sendSystemMessage(Component.literal("§9Spectator Analysis: " + hint));
         });
     }
