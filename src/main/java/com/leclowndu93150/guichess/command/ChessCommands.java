@@ -3,6 +3,7 @@ package com.leclowndu93150.guichess.command;
 import com.leclowndu93150.guichess.chess.pieces.PieceColor;
 import com.leclowndu93150.guichess.game.challenge.ChessChallenge;
 import com.leclowndu93150.guichess.game.core.ChessGame;
+import com.leclowndu93150.guichess.game.core.BotVsBotGame;
 import com.leclowndu93150.guichess.game.core.GameManager;
 import com.leclowndu93150.guichess.util.time.TimeControl;
 import com.leclowndu93150.guichess.data.models.GameHistory;
@@ -35,10 +36,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -87,6 +85,11 @@ public class ChessCommands {
                                 .then(Commands.argument("elo", IntegerArgumentType.integer(500, 3000))
                                         .executes(ChessCommands::playBot))
                                 .executes(ctx -> playBotDefaultElo(ctx)))
+                                
+                        .then(Commands.literal("bvb")
+                                .then(Commands.argument("whiteElo", IntegerArgumentType.integer(500, 3000))
+                                        .then(Commands.argument("blackElo", IntegerArgumentType.integer(500, 3000))
+                                                .executes(ChessCommands::startBotVsBotGame))))
 
                         .then(Commands.literal("accept")
                                 .executes(ChessCommands::acceptChallenge))
@@ -101,6 +104,7 @@ public class ChessCommands {
                                 .executes(ChessCommands::offerDraw))
 
                         .then(Commands.literal("spectate")
+                                .executes(ChessCommands::listGamesForSpectating)
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .suggests(ONLINE_PLAYER_SUGGESTIONS)
                                         .executes(ChessCommands::spectateGame)))
@@ -339,6 +343,50 @@ public class ChessCommands {
             context.getSource().sendFailure(Component.literal("§cFailed to offer draw (e.g., already offered, or game state issues)."));
             return 0;
         }
+    }
+
+    private static int listGamesForSpectating(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        GameManager gameManager = GameManager.getInstance();
+        
+        if (gameManager.isPlayerBusy(player)) {
+            context.getSource().sendFailure(Component.literal("§cYou cannot spectate while in a game. Resign or finish your game first."));
+            return 0;
+        }
+        
+        Map<UUID, ChessGame> activeGamesMap = gameManager.getActiveGames();
+        if (activeGamesMap.isEmpty()) {
+            context.getSource().sendFailure(Component.literal("§cNo active games to spectate!"));
+            return 0;
+        }
+        
+        context.getSource().sendSuccess(() -> Component.literal("§9═══ Active Chess Games ═══"), false);
+        
+        List<ChessGame> activeGames = new ArrayList<>(activeGamesMap.values());
+        for (int i = 0; i < activeGames.size(); i++) {
+            ChessGame game = activeGames.get(i);
+            Component gameInfo;
+            
+            if (game instanceof BotVsBotGame) {
+                BotVsBotGame botGame = (BotVsBotGame) game;
+                gameInfo = Component.literal(String.format("§7%d. §6Bot vs Bot §7- %s vs %s", 
+                    i + 1, 
+                    botGame.getWhiteBot().getName(), 
+                    botGame.getBlackBot().getName()));
+            } else {
+                ServerPlayer whitePlayer = game.getWhitePlayer();
+                ServerPlayer blackPlayer = game.getBlackPlayer();
+                String whiteName = whitePlayer != null ? whitePlayer.getName().getString() : "Bot";
+                String blackName = blackPlayer != null ? blackPlayer.getName().getString() : "Bot";
+                gameInfo = Component.literal(String.format("§7%d. §e%s §7vs §e%s", 
+                    i + 1, whiteName, blackName));
+            }
+            
+            context.getSource().sendSuccess(() -> gameInfo, false);
+        }
+        
+        context.getSource().sendSuccess(() -> Component.literal("§9Use §b/chess spectate <player>§9 to watch a specific player's game"), false);
+        return 1;
     }
 
     private static int spectateGame(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -693,6 +741,25 @@ public class ChessCommands {
         PieceColor playerColor = Math.random() < 0.5 ? PieceColor.WHITE : PieceColor.BLACK;
         
         gameManager.createBotGame(player, playerColor, TimeControl.RAPID_10_0, botElo, 3);
+        
+        return 1;
+    }
+    
+    private static int startBotVsBotGame(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        int whiteElo = IntegerArgumentType.getInteger(context, "whiteElo");
+        int blackElo = IntegerArgumentType.getInteger(context, "blackElo");
+        
+        GameManager gameManager = GameManager.getInstance();
+        
+        // Check if player is already spectating or in a game
+        if (gameManager.isPlayerBusy(player)) {
+            context.getSource().sendFailure(Component.literal("§cYou are already in a game or have a pending challenge!"));
+            return 0;
+        }
+        
+        // Create bot vs bot game
+        gameManager.createBotVsBotGame(player, whiteElo, blackElo, TimeControl.RAPID_10_0);
         
         return 1;
     }

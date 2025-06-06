@@ -3,6 +3,11 @@ package com.leclowndu93150.guichess.gui.game;
 import com.leclowndu93150.guichess.chess.board.ChessPosition;
 import com.leclowndu93150.guichess.chess.pieces.ChessPiece;
 import com.leclowndu93150.guichess.chess.pieces.PieceColor;
+import com.leclowndu93150.guichess.chess.pieces.PieceType;
+import com.leclowndu93150.guichess.chess.util.GameState;
+import com.leclowndu93150.guichess.game.core.BotVsBotGame;
+import com.leclowndu93150.guichess.game.core.ChessBoard;
+import com.leclowndu93150.guichess.data.models.PlayerData;
 import com.leclowndu93150.guichess.engine.integration.StockfishEngineManager;
 import com.leclowndu93150.guichess.game.core.ChessGame;
 import com.leclowndu93150.guichess.game.core.GameManager;
@@ -13,6 +18,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+
+import java.util.List;
 
 /**
  * Spectator interface for watching ongoing chess games.
@@ -98,11 +105,32 @@ public class SpectatorGUI extends ChessGUI {
                     player.sendSystemMessage(Component.literal("§7Time Control: " + game.getTimeControl().displayName));
                 }));
 
-        // Move analysis request to hotbar (slot 76)
-        setSlot(76, new GuiElementBuilder(Items.ENDER_EYE)
+        // Analysis button at left corner of hotbar (slot 81)
+        setSlot(81, new GuiElementBuilder(Items.ENDER_EYE)
                 .setName(Component.literal("§dRequest Analysis"))
                 .setCallback((index, type, action, gui) -> {
                     handleHint();
+                }));
+                
+        // Close spectate button at right corner of hotbar (slot 89) that ends the match
+        setSlot(89, new GuiElementBuilder(Items.BARRIER)
+                .setName(Component.literal("§cEnd Match"))
+                .setLore(List.of(
+                    Component.literal("§7Click to stop the entire match"),
+                    Component.literal("§7and close spectating")
+                ))
+                .setCallback((index, type, action, gui) -> {
+                    ChessSoundManager.playUISound(player, ChessSoundManager.UISound.CLICK);
+                    
+                    // End the entire game
+                    if (game instanceof BotVsBotGame) {
+                        game.endGame(GameState.DRAW_BY_AGREEMENT);
+                        player.sendSystemMessage(Component.literal("§cBot vs Bot match ended"));
+                    } else {
+                        GameManager.getInstance().removeSpectator(game, player);
+                        player.sendSystemMessage(Component.literal("§7Stopped spectating"));
+                    }
+                    close();
                 }));
     }
 
@@ -119,9 +147,139 @@ public class SpectatorGUI extends ChessGUI {
         if (viewPerspective == PieceColor.WHITE) {
             setSlot(53, whiteTimer);
             setSlot(26, blackTimer);
+            
+            // White evaluation book at slot 62
+            updatePlayerEvaluationBook(62, true);
+            // Black evaluation book at slot 17
+            updatePlayerEvaluationBook(17, false);
         } else {
             setSlot(53, blackTimer);
             setSlot(26, whiteTimer);
+            
+            // Black evaluation book at slot 62
+            updatePlayerEvaluationBook(62, false);
+            // White evaluation book at slot 17
+            updatePlayerEvaluationBook(17, true);
+        }
+    }
+    
+    private void updatePlayerEvaluationBook(int slot, boolean isWhite) {
+        String playerName = getPlayerName(isWhite);
+        String playerElo = getPlayerElo(isWhite);
+        String evaluation = getCurrentEvaluation();
+        String whoIsWinning = getWhoIsWinning();
+        String materialCount = getMaterialCount(isWhite);
+        String moveCount = getMoveCount();
+        
+        List<Component> lore = List.of(
+            Component.literal("§7Player: §f" + playerName),
+            Component.literal("§7ELO: §e" + playerElo),
+            Component.literal("§7Material: §b" + materialCount),
+            Component.literal(""),
+            Component.literal("§7Position Eval: §d" + evaluation),
+            Component.literal("§7Status: §a" + whoIsWinning),
+            Component.literal("§7Move: §6" + moveCount),
+            Component.literal(""),
+            Component.literal("§8Click to request analysis")
+        );
+        
+        String bookTitle = isWhite ? "§fWhite Analysis" : "§8Black Analysis";
+        
+        // Player evaluation book
+        setSlot(slot, new GuiElementBuilder(Items.BOOK)
+                .setName(Component.literal(bookTitle))
+                .setLore(lore)
+                .setCallback((index, type, action, gui) -> {
+                    handleHint();
+                }));
+    }
+    
+    private String getPlayerName(boolean isWhite) {
+        if (game instanceof BotVsBotGame) {
+            BotVsBotGame botGame = (BotVsBotGame) game;
+            return isWhite ? botGame.getWhiteBot().getName() : botGame.getBlackBot().getName();
+        } else {
+            ServerPlayer player = isWhite ? game.getWhitePlayer() : game.getBlackPlayer();
+            return player != null ? player.getName().getString() : "Bot";
+        }
+    }
+    
+    private String getPlayerElo(boolean isWhite) {
+        if (game instanceof BotVsBotGame) {
+            BotVsBotGame botGame = (BotVsBotGame) game;
+            return String.valueOf(isWhite ? botGame.getWhiteBot().getElo() : botGame.getBlackBot().getElo());
+        } else {
+            ServerPlayer player = isWhite ? game.getWhitePlayer() : game.getBlackPlayer();
+            if (player != null) {
+                PlayerData data = GameManager.getInstance().getPlayerData(player);
+                return String.valueOf(data.elo);
+            }
+            return "1500"; // Default for bot
+        }
+    }
+    
+    private String getCurrentEvaluation() {
+        // This would ideally get real-time evaluation from engine
+        // For now, return a placeholder based on game state
+        GameState state = game.getBoard().getGameState();
+        return switch (state) {
+            case WHITE_TURN, CHECK_WHITE -> "Slight advantage";
+            case BLACK_TURN, CHECK_BLACK -> "Slight advantage"; 
+            case CHECKMATE_WHITE_WINS -> "White wins!";
+            case CHECKMATE_BLACK_WINS -> "Black wins!";
+            case STALEMATE -> "Draw - Stalemate";
+            case DRAW_FIFTY_MOVE -> "Draw - 50 moves";
+            case DRAW_THREEFOLD -> "Draw - Repetition";
+            case DRAW_INSUFFICIENT -> "Draw - Material";
+            default -> "Equal position";
+        };
+    }
+    
+    private String getWhoIsWinning() {
+        GameState state = game.getBoard().getGameState();
+        return switch (state) {
+            case WHITE_TURN, CHECK_BLACK -> "White to move";
+            case BLACK_TURN, CHECK_WHITE -> "Black to move";
+            case CHECKMATE_WHITE_WINS -> "§aWhite wins!";
+            case CHECKMATE_BLACK_WINS -> "§aBlack wins!";
+            case STALEMATE, DRAW_FIFTY_MOVE, DRAW_THREEFOLD, DRAW_INSUFFICIENT -> "§7Draw";
+            default -> "Game in progress";
+        };
+    }
+    
+    private String getMaterialCount(boolean isWhite) {
+        // Count material value for the player
+        ChessBoard board = game.getBoard();
+        int materialValue = 0;
+        
+        for (int i = 0; i < 64; i++) {
+            ChessPiece piece = board.getPiece(ChessPosition.fromIndex(i));
+            if (piece != null && piece.isWhite() == isWhite) {
+                materialValue += getPieceValue(piece.getType());
+            }
+        }
+        
+        return String.valueOf(materialValue);
+    }
+    
+    private int getPieceValue(PieceType type) {
+        return switch (type) {
+            case PAWN -> 1;
+            case KNIGHT, BISHOP -> 3;
+            case ROOK -> 5;
+            case QUEEN -> 9;
+            case KING -> 0; // King has no material value
+        };
+    }
+    
+    private String getMoveCount() {
+        int fullMoves = game.getBoard().getFullMoveNumber();
+        boolean isWhiteTurn = game.getBoard().getCurrentTurn() == PieceColor.WHITE;
+        
+        if (isWhiteTurn) {
+            return String.valueOf(fullMoves);
+        } else {
+            return fullMoves + "...";
         }
     }
 
@@ -152,7 +310,8 @@ public class SpectatorGUI extends ChessGUI {
     @Override
     public void onClose() {
         GameManager.getInstance().removeSpectator(game, player);
-        super.onClose();
+        player.sendSystemMessage(Component.literal("§7Stopped spectating chess game"));
+        // Don't call super.onClose() to avoid "reopening chess board" message
     }
 
     @Override

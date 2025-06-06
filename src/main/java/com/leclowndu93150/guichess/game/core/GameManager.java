@@ -294,6 +294,28 @@ public class GameManager {
     }
     
     /**
+     * Creates a bot vs bot game with specified ELO ratings.
+     * 
+     * @param initiator the player who initiated the bot vs bot game
+     * @param whiteElo the ELO rating for the white bot
+     * @param blackElo the ELO rating for the black bot
+     * @param timeControl the time control settings
+     * @return the created BotVsBotGame instance
+     */
+    public BotVsBotGame createBotVsBotGame(ServerPlayer initiator, int whiteElo, int blackElo, TimeControl timeControl) {
+        BotVsBotGame game = new BotVsBotGame(initiator, whiteElo, blackElo, timeControl);
+        activeGames.put(game.getGameId(), game);
+        
+        // Open spectator GUI for the initiator
+        game.addInitiatorAsSpectator();
+        
+        initiator.sendSystemMessage(Component.literal("§aStarting bot vs bot game!"));
+        initiator.sendSystemMessage(Component.literal("§7White: Bot (ELO " + whiteElo + ") vs Black: Bot (ELO " + blackElo + ")"));
+        
+        return game;
+    }
+    
+    /**
      * Creates a new chess game between two players with full configuration options.
      * 
      * This is the core game creation method that handles all game setup including:
@@ -373,11 +395,26 @@ public class GameManager {
      */
     public void addSpectator(ChessGame game, ServerPlayer spectator) {
         if (game == null || spectator == null) return;
-        if (game.getWhitePlayer().equals(spectator) || game.getBlackPlayer().equals(spectator)) {
+        
+        // Check if spectator is a player in the game (null-safe for bot vs bot games)
+        ServerPlayer whitePlayer = game.getWhitePlayer();
+        ServerPlayer blackPlayer = game.getBlackPlayer();
+        if ((whitePlayer != null && whitePlayer.equals(spectator)) || 
+            (blackPlayer != null && blackPlayer.equals(spectator))) {
             spectator.sendSystemMessage(Component.literal("§cYou cannot spectate your own game."));
             return;
         }
 
+        SpectatorGUI specGUI = new SpectatorGUI(spectator, game);
+        List<SpectatorGUI> guis = spectatorGUIs.computeIfAbsent(game.getGameId(), k -> new ArrayList<>());
+        guis.add(specGUI);
+        specGUI.open();
+    }
+    
+    public void addSpectatorToBotVsBotGame(BotVsBotGame game, ServerPlayer spectator) {
+        if (game == null || spectator == null) return;
+        
+        // For bot vs bot games, anyone can spectate since there are no human players
         SpectatorGUI specGUI = new SpectatorGUI(spectator, game);
         List<SpectatorGUI> guis = spectatorGUIs.computeIfAbsent(game.getGameId(), k -> new ArrayList<>());
         guis.add(specGUI);
