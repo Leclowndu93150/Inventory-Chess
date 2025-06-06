@@ -165,7 +165,29 @@ public class ChessBoard {
     private void updateEnPassantTarget(ChessMove move, ChessPiece movingPiece) {
         enPassantTarget = null; // Reset en passant target by default
         if (movingPiece != null && movingPiece.getType() == PieceType.PAWN && Math.abs(move.to.rank - move.from.rank) == 2) {
-            enPassantTarget = new ChessPosition(move.from.file, (move.from.rank + move.to.rank) / 2);
+            // Only set en passant target if there's an enemy pawn that can capture
+            ChessPosition potentialEnPassant = new ChessPosition(move.from.file, (move.from.rank + move.to.rank) / 2);
+            boolean canBeCapturedEnPassant = false;
+            
+            // Check left side
+            if (move.to.file > 0) {
+                ChessPiece leftPiece = getPiece(new ChessPosition(move.to.file - 1, move.to.rank));
+                if (leftPiece != null && leftPiece.getType() == PieceType.PAWN && leftPiece.isWhite() != movingPiece.isWhite()) {
+                    canBeCapturedEnPassant = true;
+                }
+            }
+            
+            // Check right side
+            if (!canBeCapturedEnPassant && move.to.file < 7) {
+                ChessPiece rightPiece = getPiece(new ChessPosition(move.to.file + 1, move.to.rank));
+                if (rightPiece != null && rightPiece.getType() == PieceType.PAWN && rightPiece.isWhite() != movingPiece.isWhite()) {
+                    canBeCapturedEnPassant = true;
+                }
+            }
+            
+            if (canBeCapturedEnPassant) {
+                enPassantTarget = potentialEnPassant;
+            }
         }
     }
 
@@ -599,19 +621,15 @@ public class ChessBoard {
         boolean inCheck = isInCheck(currentTurn);
         List<ChessMove> legalMovesCurrentPlayer = getLegalMovesForColor(currentTurn);
 
-        System.out.println("[Chess Debug] UpdateGameState: turn=" + currentTurn + ", inCheck=" + inCheck + ", legalMoves=" + legalMovesCurrentPlayer.size());
 
         if (legalMovesCurrentPlayer.isEmpty()) {
             if (inCheck) {
                 gameState = (currentTurn == PieceColor.WHITE) ? GameState.CHECKMATE_BLACK_WINS : GameState.CHECKMATE_WHITE_WINS;
-                System.out.println("[Chess Debug] CHECKMATE detected! Winner: " + (currentTurn == PieceColor.WHITE ? "Black" : "White"));
             } else {
                 gameState = GameState.STALEMATE;
-                System.out.println("[Chess Debug] STALEMATE detected!");
             }
         } else if (inCheck) {
             gameState = (currentTurn == PieceColor.WHITE) ? GameState.CHECK_WHITE : GameState.CHECK_BLACK;
-            System.out.println("[Chess Debug] CHECK detected for " + currentTurn);
         } else {
             gameState = (currentTurn == PieceColor.WHITE) ? GameState.WHITE_TURN : GameState.BLACK_TURN;
         }

@@ -10,6 +10,7 @@ import com.leclowndu93150.guichess.game.players.GameParticipant;
 import com.leclowndu93150.guichess.util.audio.ChessSoundManager;
 import com.leclowndu93150.guichess.util.time.TimeControl;
 import com.leclowndu93150.guichess.engine.integration.StockfishEngineManager;
+import com.leclowndu93150.guichess.engine.integration.StockfishIntegration;
 import com.leclowndu93150.guichess.gui.game.ChessGUI;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -132,16 +133,26 @@ public class ChessBotGame extends ChessGame {
                                     isThinking = false;
                                 });
                             } else {
-                                if (humanPlayer != null) humanPlayer.sendSystemMessage(Component.literal("§cBot failed to parse move!"));
+                                if (humanPlayer != null) {
+                                    humanPlayer.sendSystemMessage(Component.literal("§cBot failed to parse move: " + result.bestMove));
+                                }
                                 isThinking = false;
                             }
                         } else {
-                            if (humanPlayer != null) humanPlayer.sendSystemMessage(Component.literal("§cBot failed to find a move!"));
+                            if (humanPlayer != null) {
+                                humanPlayer.sendSystemMessage(Component.literal("§cBot failed to find a move!"));
+                                if (result.error != null) {
+                                    humanPlayer.sendSystemMessage(Component.literal("§cError: " + result.error));
+                                }
+                            }
                             isThinking = false;
                         }
                     })
                     .exceptionally(throwable -> {
-                        if (humanPlayer != null) humanPlayer.sendSystemMessage(Component.literal("§cBot error: " + throwable.getMessage()));
+                        if (humanPlayer != null) {
+                            humanPlayer.sendSystemMessage(Component.literal("§cBot error: " + throwable.getMessage()));
+                            throwable.printStackTrace();
+                        }
                         isThinking = false;
                         return null;
                     });

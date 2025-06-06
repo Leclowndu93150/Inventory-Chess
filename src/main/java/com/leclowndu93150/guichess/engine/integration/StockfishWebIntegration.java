@@ -89,10 +89,13 @@ public class StockfishWebIntegration implements IStockfishEngine {
                     JsonObject jsonResponse = JsonParser.parseString(response.body()).getAsJsonObject();
                     callback.accept(jsonResponse);
                 } else {
+                    System.err.println("[StockfishWeb] HTTP Error " + response.statusCode() + ": " + response.body());
                     callback.accept(null);
                 }
                 
             } catch (IOException | InterruptedException e) {
+                System.err.println("[StockfishWeb] Exception: " + e.getMessage());
+                e.printStackTrace();
                 callback.accept(null);
             }
         });
@@ -243,6 +246,8 @@ public class StockfishWebIntegration implements IStockfishEngine {
                 
                 if (response.has("lan")) {
                     result.bestMove = response.get("lan").getAsString();
+                } else if (response.has("move")) {
+                    result.bestMove = response.get("move").getAsString();
                 }
                 
                 if (response.has("eval")) {
@@ -263,7 +268,7 @@ public class StockfishWebIntegration implements IStockfishEngine {
                 future.complete(result);
             } else {
                 StockfishIntegration.AnalysisResult errorResult = new StockfishIntegration.AnalysisResult();
-                errorResult.error = "Web service unavailable";
+                errorResult.error = "Web service unavailable or no response received";
                 future.complete(errorResult);
             }
         });
@@ -275,6 +280,7 @@ public class StockfishWebIntegration implements IStockfishEngine {
         analyzePosition(fen).thenAccept(callback).exceptionally(throwable -> {
             StockfishIntegration.AnalysisResult errorResult = new StockfishIntegration.AnalysisResult();
             errorResult.error = "Error: " + throwable.getMessage();
+            throwable.printStackTrace();
             callback.accept(errorResult);
             return null;
         });
