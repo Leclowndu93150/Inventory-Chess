@@ -1,7 +1,5 @@
 package com.leclowndu93150.guichess.engine.integration;
 
-import com.google.gson.JsonObject;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 

@@ -61,12 +61,13 @@ public class GUIChess {
         NeoForge.EVENT_BUS.register(PlayerEventHandler.class);
     }
 
+    @SubscribeEvent
     public void registerConfigurationTasks(RegisterConfigurationTasksEvent event) {
         event.register(new ServerResourcePackConfigurationTask(
                 new MinecraftServer.ServerResourcePackInfo(
-                        UUID.fromString("55859871-ba02-4215-8828-cc7a45099eb6"),
-                        "https://github.com/Leclowndu93150/leclowndu93150.github.io/raw/refs/heads/main/serversidesummer%20assets.zip",
-                        "a94e7fca07a680ffdb8abc44e28dcde63c0f79f7",
+                        UUID.fromString("55859871-ba02-4215-8828-cc7a45099eb7"),
+                        "https://github.com/Leclowndu93150/leclowndu93150.github.io/raw/refs/heads/main/serversidesummer%20assets2.zip",
+                        "c5b297c14bff87f3b7bbef7a9ded8c3be1562cdf",
                         true,
                         null
                 )));

@@ -124,7 +124,8 @@ public class SpectatorGUI extends ChessGUI {
                     
                     // End the entire game
                     if (game instanceof BotVsBotGame) {
-                        game.endGame(GameState.DRAW_BY_AGREEMENT);
+                        //TODO Fix this shit
+                        //game.endGame(GameState.DRAW_BY_AGREEMENT);
                         player.sendSystemMessage(Component.literal("§cBot vs Bot match ended"));
                     } else {
                         GameManager.getInstance().removeSpectator(game, player);
