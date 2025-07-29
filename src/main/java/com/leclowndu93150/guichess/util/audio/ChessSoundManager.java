@@ -8,22 +8,12 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 
 /**
- * Manages sound effects for chess game events and user interface interactions.
- * 
- * <p>Provides contextual audio feedback for different types of chess moves and game states,
- * including captures, checks, checkmates, castling, and UI interactions.
- * 
- * @author GUIChess
- * @since 1.0
+ * Plays sounds for chess moves and game events.
  */
 public class ChessSoundManager {
 
     /**
-     * Plays appropriate sound effect for a chess move based on move type and game state.
-     * 
-     * @param player the player to play the sound for
-     * @param move the chess move that was made
-     * @param gameState the current state of the game
+     * Plays sound for chess move.
      */
     public static void playMoveSound(ServerPlayer player, ChessMove move, GameState gameState) {
         if (player == null || move == null) return;
@@ -59,10 +49,7 @@ public class ChessSoundManager {
     }
 
     /**
-     * Plays sound effect for game ending events.
-     * 
-     * @param player the player to play the sound for
-     * @param gameState the final game state
+     * Plays sound for game end.
      */
     public static void playGameEndSound(ServerPlayer player, GameState gameState) {
         if (player == null) return;

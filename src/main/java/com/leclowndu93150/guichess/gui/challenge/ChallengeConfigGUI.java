@@ -14,60 +14,8 @@ import net.minecraft.world.item.Item;
 import java.util.List;
 
 /**
- * Challenge configuration interface for setting up chess games before sending challenges to opponents.
- * 
- * <p>This GUI provides a comprehensive configuration system for chess challenges, allowing players
- * to customize all aspects of their game setup before sending a challenge request. It serves as
- * the primary interface for configuring competitive chess matches between players.
- * 
- * <h3>Configuration Options:</h3>
- * <ul>
- *   <li><strong>Opponent Type:</strong> Human players vs AI bots (bot implementation pending)</li>
- *   <li><strong>Time Control:</strong> Complete selection of standard chess time formats</li>
- *   <li><strong>Hint System:</strong> Configurable hint allowance (0-3 hints per game)</li>
- *   <li><strong>Side Selection:</strong> Choose to play as White, Black, or random assignment</li>
- *   <li><strong>Bot Configuration:</strong> ELO rating selection for AI difficulty (when implemented)</li>
- *   <li><strong>Item Betting:</strong> Wager system for competitive matches (planned feature)</li>
- * </ul>
- * 
- * <h3>User Experience Flow:</h3>
- * <ol>
- *   <li>Player opens challenge configuration</li>
- *   <li>Selects opponent type and configures related settings</li>
- *   <li>Chooses time control from standard chess formats</li>
- *   <li>Sets optional features (hints, betting)</li>
- *   <li>Reviews configuration and sends challenge</li>
- *   <li>Proceeds to opponent selection if challenging human player</li>
- * </ol>
- * 
- * <h3>Integration Points:</h3>
- * <ul>
- *   <li><strong>GameManager:</strong> Creates and manages challenge instances</li>
- *   <li><strong>TimeControl:</strong> Validates and applies timing configurations</li>
- *   <li><strong>Player Selection:</strong> Interfaces with server player list for opponent selection</li>
- *   <li><strong>Challenge System:</strong> Generates properly configured ChessChallenge objects</li>
- * </ul>
- * 
- * <h3>State Management:</h3>
- * The GUI maintains configuration state locally until challenge creation, allowing users
- * to modify settings freely without affecting other systems. Only valid configurations
- * are permitted to proceed to challenge creation.
- * 
- * <h3>Future Features:</h3>
- * <ul>
- *   <li>Bot integration with adjustable difficulty settings</li>
- *   <li>Item betting system with inventory integration</li>
- *   <li>Tournament mode configuration</li>
- *   <li>Saved configuration presets</li>
- * </ul>
- * 
- * @see ChessChallenge For the challenge data structure created by this interface
- * @see GameManager#createChallengeWithConfiguration For challenge creation integration
- * @see TimeControl For available time control options
- */
-/**
- * GUI for configuring chess game challenges.
- * Handles opponent selection, time controls, betting, and game setup.
+ * Basic challenge configuration GUI.
+ * Simple interface for time control and opponent selection.
  */
 public class ChallengeConfigGUI extends SimpleGui {
     private final ServerPlayer player;

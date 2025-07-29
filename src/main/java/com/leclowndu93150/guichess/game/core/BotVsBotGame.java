@@ -27,10 +27,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Manages games between two AI bots with configurable ELO ratings.
- * 
- * <p>Allows spectators to watch AI vs AI matches with different skill levels.
- * Bots take turns making moves with simulated thinking time for realism.
+ * Bot vs bot chess games with spectators.
+ * Uses different ELO levels and simulated thinking time.
  */
 public class BotVsBotGame extends ChessGame {
     private final BotPlayer whiteBot;

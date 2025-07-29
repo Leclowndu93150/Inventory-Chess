@@ -33,8 +33,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Main chess game interface handling player interaction and board visualization.
- * Manages piece selection, move input, and real-time game state updates.
+ * Chess board GUI using inventory interface.
+ * Handles piece selection, moves, and board display.
  */
 public class ChessGUI extends SimpleGui {
     protected final ChessGame game;
@@ -111,7 +111,8 @@ public class ChessGUI extends SimpleGui {
 
     /**
      * Updates the complete chess board display, reflecting the current game state.
-     * Handles board rendering, piece placement, move highlighting, and utility controls.
+     * 
+     * <p>Handles board rendering, piece placement, move highlighting, and utility controls.
      */
     public void updateBoard() {
         if (showingPromotionDialog) {
@@ -195,7 +196,8 @@ public class ChessGUI extends SimpleGui {
 
     /**
      * Handles chess board square click interactions, managing piece selection and move execution.
-     * Implements the standard "click to select, click to move" chess UI pattern.
+     * 
+     * <p>Implements the standard "click to select, click to move" chess UI pattern.
      * 
      * @param position The chess board position that was clicked by the player
      */

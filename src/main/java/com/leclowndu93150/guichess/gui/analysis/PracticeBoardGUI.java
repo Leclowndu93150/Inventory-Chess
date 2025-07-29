@@ -21,14 +21,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Practice board GUI for solo chess practice and position exploration.
- * 
- * <p>Provides a sandbox environment where players can practice moves, explore positions,
- * and experiment with different chess scenarios without time constraints or opponents.
- * Includes move validation, undo functionality, and Stockfish analysis integration.
- * 
- * @author GUIChess
- * @since 1.0
+ * Practice board for solo play and position analysis.
+ * No time limits, includes undo and Stockfish hints.
  */
 public class PracticeBoardGUI extends ChessGUI {
     private ChessBoard practiceBoard;

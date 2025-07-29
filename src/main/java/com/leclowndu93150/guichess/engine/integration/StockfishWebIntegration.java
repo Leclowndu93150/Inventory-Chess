@@ -14,12 +14,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * Web-based Stockfish integration using chess-api.com for high-performance analysis.
- * 
- * <p>Provides cloud-based chess analysis with up to 80 MNPS calculation power without
- * consuming local server resources. Falls back to local binary integration when unavailable.
- * 
- * <p><strong>THE BINARY SYSTEM IS ONLY A FALLBACK IF INTERNET CONNECTION IS UNAVAILABLE.</strong>
+ * Web Stockfish API using chess-api.com.
+ * Primary engine with local fallback.
  */
 public class StockfishWebIntegration implements IStockfishEngine {
     private static final String API_URL = "https://chess-api.com/v1";

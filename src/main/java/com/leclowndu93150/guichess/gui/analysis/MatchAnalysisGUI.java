@@ -26,20 +26,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Post-game analysis GUI that allows players to review their completed games with Stockfish analysis.
- * 
- * <p>Features include:
- * <ul>
- * <li>Move-by-move navigation with arrow keys and buttons</li>
- * <li>Detailed move evaluations and centipawn loss calculations</li>
- * <li>Visual highlighting of last moves and position changes</li>
- * <li>Evaluation displays for both players' perspectives</li>
- * <li>PGN export with Chess.com integration</li>
- * <li>Move quality classification (brilliant, good, mistake, etc.)</li>
- * </ul>
- * 
- * @author GUIChess
- * @since 1.0
+ * Post-game analysis with Stockfish evaluation.
+ * Navigate through moves, see evaluations, export PGN.
  */
 public class MatchAnalysisGUI extends SimpleGui {
     private final GameHistory gameHistory;

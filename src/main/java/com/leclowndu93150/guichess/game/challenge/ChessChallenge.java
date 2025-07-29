@@ -10,43 +10,15 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Represents a pending chess game invitation between two players.
- * <p>
- * A ChessChallenge encapsulates all the parameters and state of a game invitation,
- * including the challenger and challenged players, time controls, betting stakes,
- * and preferred piece colors. Challenges have a fixed expiry time and follow a
- * lifecycle from creation to acceptance/rejection/expiry.
- * </p>
- * <p>
- * Challenge Lifecycle:
- * <ol>
- *   <li>Created by challenger with game parameters</li>
- *   <li>Sent to challenged player for acceptance</li>
- *   <li>Either accepted (creates ChessGame), rejected, or expires after 60 seconds</li>
- * </ol>
- * </p>
- * 
- * @author leclowndu93150
- * @see ChessGame
- * @see TimeControl
+ * Chess challenge with 60-second timeout.
+ * Stores game settings and bet items.
  */
 public class ChessChallenge {
-    /** Unique identifier for this challenge instance */
     public final UUID challengeId;
-    
-    /** The player who initiated this challenge */
     public final ServerPlayer challenger;
-    
-    /** The player being challenged */
     public final ServerPlayer challenged;
-    
-    /** Time control settings for the proposed game */
     public final TimeControl timeControl;
-    
-    /** Timestamp when this challenge was created (milliseconds since epoch) */
     public final long challengeTime;
-    
-    /** Timestamp when this challenge expires (milliseconds since epoch) */
     public final long expiryTime;
     
     /** Number of hints allowed in the game (0 for human vs human) */

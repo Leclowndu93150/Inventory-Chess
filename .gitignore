@@ -111,6 +111,8 @@ gradle-app.setting
 
 **/build/
 
+.claude
+
 # Common working directory
 run/
 runs/

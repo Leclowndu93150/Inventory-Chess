@@ -4,98 +4,79 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * Common interface for Stockfish chess engine integrations.
- * 
- * <p>Provides a unified API for chess position analysis, evaluation, and move hints
- * regardless of the underlying implementation (local binary or web service).
+ * Interface for Stockfish engine implementations.
  */
 public interface IStockfishEngine {
     
     /**
-     * Checks if the engine is available and ready for use.
-     * 
-     * @return true if the engine is available, false otherwise
+     * Checks if engine is ready.
      */
     boolean isAvailable();
     
     /**
-     * Waits until the engine is ready for use.
-     * 
-     * @return CompletableFuture that completes with true when ready, false if initialization failed
+     * Waits for engine initialization.
      */
     CompletableFuture<Boolean> waitUntilReady();
     
     /**
-     * Requests the best move hint for a given position.
-     * 
-     * @param fen the position in FEN notation
-     * @return CompletableFuture containing the best move in UCI notation
+     * Gets best move for position.
+     * @param fen position in FEN notation
      */
     CompletableFuture<String> requestHint(String fen);
     
     /**
-     * Requests the best move hint for a given position with callback.
-     * 
-     * @param fen the position in FEN notation
-     * @param callback called with the best move in UCI notation
+     * Gets best move with callback.
+     * @param fen position in FEN notation
+     * @param callback receives best move
      */
     void requestHint(String fen, Consumer<String> callback);
     
     /**
-     * Evaluates a chess position.
-     * 
-     * @param fen the position in FEN notation
-     * @return CompletableFuture containing the evaluation result
+     * Evaluates position strength.
+     * @param fen position in FEN notation
      */
     CompletableFuture<StockfishIntegration.EvaluationResult> evaluatePosition(String fen);
     
     /**
-     * Evaluates a chess position with callback.
-     * 
-     * @param fen the position in FEN notation
-     * @param callback called with the evaluation result
+     * Evaluates position with callback.
+     * @param fen position in FEN notation
+     * @param callback receives evaluation
      */
     void evaluatePosition(String fen, Consumer<StockfishIntegration.EvaluationResult> callback);
     
     /**
-     * Performs full analysis of a chess position.
-     * 
-     * @param fen the position in FEN notation
-     * @return CompletableFuture containing the analysis result
+     * Full position analysis.
+     * @param fen position in FEN notation
      */
     CompletableFuture<StockfishIntegration.AnalysisResult> analyzePosition(String fen);
     
     /**
-     * Performs full analysis of a chess position with callback.
-     * 
-     * @param fen the position in FEN notation
-     * @param callback called with the analysis result
+     * Full analysis with callback.
+     * @param fen position in FEN notation
+     * @param callback receives analysis
      */
     void analyzePosition(String fen, Consumer<StockfishIntegration.AnalysisResult> callback);
     
     /**
-     * Sets the skill level for the engine.
-     * 
-     * @param level skill level (-20 to 20, where 20 is strongest)
+     * Sets engine difficulty.
+     * @param level -20 to 20, higher is stronger
      */
     void setSkillLevel(int level);
     
     /**
-     * Sets the analysis depth.
-     * 
-     * @param depth the search depth (typically 10-20)
+     * Sets search depth.
+     * @param depth search depth (10-20)
      */
     void setAnalysisDepth(int depth);
     
     /**
-     * Sets the analysis time limit.
-     * 
-     * @param timeMs the time limit in milliseconds
+     * Sets analysis time limit.
+     * @param timeMs time in milliseconds
      */
     void setAnalysisTime(int timeMs);
     
     /**
-     * Shuts down the engine and releases resources.
+     * Shuts down engine.
      */
     void shutdown();
 }

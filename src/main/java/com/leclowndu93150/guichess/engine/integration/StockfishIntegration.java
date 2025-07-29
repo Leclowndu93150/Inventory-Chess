@@ -12,11 +12,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Local Stockfish binary integration for offline chess analysis.
- * 
- * <p><strong>THE BINARY SYSTEM IS ONLY A FALLBACK IF INTERNET CONNECTION IS UNAVAILABLE.</strong>
- * This integration handles local Stockfish process management and UCI communication when the 
- * primary web-based analysis service is not accessible.
+ * Local Stockfish binary fallback when web API unavailable.
+ * Downloads and manages UCI process communication.
  */
 public class StockfishIntegration implements IStockfishEngine {
     private static StockfishIntegration instance;

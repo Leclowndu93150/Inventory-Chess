@@ -5,11 +5,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * Primary Stockfish engine manager that handles automatic fallback between web and binary integrations.
- * 
- * <p>Provides a unified interface for chess analysis by intelligently routing requests to the best
- * available engine implementation. Prefers web-based analysis for performance, falls back to local
- * binary when needed.
+ * Manages Stockfish engine access.
+ * Tries web API first, falls back to local binary.
  */
 public class StockfishEngineManager implements IStockfishEngine {
     private static StockfishEngineManager instance;

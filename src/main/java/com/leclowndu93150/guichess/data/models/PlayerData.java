@@ -10,13 +10,8 @@ import java.time.ZoneOffset;
 import java.util.*;
 
 /**
- * Player statistics and profile data for chess gameplay.
- * 
- * <p>Stores comprehensive player information including ELO rating, game statistics,
- * play time tracking, and game history. Supports serialization to NBT for persistence.
- * 
- * @author GUIChess
- * @since 1.0
+ * Player stats and ELO rating.
+ * Persisted to NBT.
  */
 public class PlayerData {
     public UUID playerId;

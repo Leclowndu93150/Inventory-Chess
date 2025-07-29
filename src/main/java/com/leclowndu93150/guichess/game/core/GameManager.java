@@ -41,38 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Central coordinator and manager for the entire chess system.
- * 
- * This singleton class serves as the main orchestrator for all chess-related activities,
- * managing the complete lifecycle of chess games, player challenges, spectator systems,
- * and player data persistence. It coordinates between multiple subsystems including:
- * 
- * <ul>
- *   <li>Active game state management and lifecycle</li>
- *   <li>Player challenge creation, acceptance, and expiration</li>
- *   <li>GUI management for players and spectators</li>
- *   <li>Player data persistence and ELO rating system</li>
- *   <li>Time control enforcement and warnings</li>
- *   <li>Inventory management during games</li>
- *   <li>Bot game integration</li>
- *   <li>Administrative functions</li>
- * </ul>
- * 
- * <p>The GameManager maintains thread-safe concurrent collections for all game state
- * and uses a scheduled executor service for periodic tasks like timer updates,
- * challenge cleanup, and data persistence.</p>
- * 
- * <p>Key architectural responsibilities:</p>
- * <ul>
- *   <li>Ensuring players cannot be in multiple games simultaneously</li>
- *   <li>Managing player inventories before/after games</li>
- *   <li>Coordinating GUI updates across all participants</li>
- *   <li>Handling game completion and cleanup</li>
- *   <li>Providing centralized access to player statistics</li>
- * </ul>
- * 
- * @author GUIChess Team
- * @since 1.0
+ * Manages chess games, challenges, and player data.
  */
 public class GameManager {
     private static GameManager instance;
@@ -99,11 +68,7 @@ public class GameManager {
     }
 
     /**
-     * Returns the singleton instance of the GameManager.
-     * 
-     * This method provides thread-safe access to the single GameManager instance
-     * that coordinates all chess system operations. The instance is lazily initialized
-     * on first access.
+     * Returns the singleton GameManager instance.
      * 
      * @return the singleton GameManager instance
      */
@@ -119,23 +84,12 @@ public class GameManager {
     }
 
     /**
-     * Initializes the GameManager with the Minecraft server instance and starts all background services.
+     * Initializes the GameManager and starts all background services.
      * 
-     * This method sets up the complete chess system infrastructure including:
-     * <ul>
-     *   <li>Data directory creation and player data loading</li>
-     *   <li>Scheduled executor service for periodic tasks</li>
-     *   <li>Timer management for active games</li>
-     *   <li>Challenge expiration cleanup</li>
-     *   <li>Automatic data persistence</li>
-     *   <li>GUI reopen functionality</li>
-     * </ul>
+     * <p>Sets up data storage, scheduler, and periodic tasks for game management.
+     * Should be called once during server startup.
      * 
-     * <p>This method should be called exactly once during server startup,
-     * typically from the mod's initialization phase.</p>
-     * 
-     * @param server the MinecraftServer instance to associate with this GameManager
-     * @throws RuntimeException if initialization fails due to I/O errors or scheduler issues
+     * @param server the MinecraftServer instance
      */
     public void initialize(MinecraftServer server) {
         this.server = server;
@@ -193,20 +147,25 @@ public class GameManager {
     }
 
     /**
-     * Gracefully shuts down the GameManager and all associated services.
-     * 
-     * This method performs a complete cleanup of the chess system including:
-     * <ul>
-     *   <li>Stopping the scheduled executor service</li>
-     *   <li>Saving all player data to persistent storage</li>
-     *   <li>Clearing saved player inventories</li>
-     *   <li>Ensuring all background tasks complete</li>
-     * </ul>
-     * 
-     * <p>This method should be called during server shutdown to ensure
-     * no data is lost and all resources are properly released.</p>
+     * Shuts down GameManager on server stop.
+     * Restores player inventories, stops scheduler, saves data.
      */
     public void shutdown() {
+        // Restore all saved inventories before shutdown to prevent item loss
+        if (!savedInventories.isEmpty()) {
+            System.out.println("[GUIChess] Restoring " + savedInventories.size() + " saved inventories before shutdown...");
+            for (Map.Entry<UUID, CompoundTag> entry : savedInventories.entrySet()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+                if (player != null && !player.hasDisconnected()) {
+                    CompoundTag savedInventory = entry.getValue();
+                    if (savedInventory != null) {
+                        player.getInventory().load(savedInventory.getList("Inventory", 10));
+                        player.inventoryMenu.broadcastChanges();
+                    }
+                }
+            }
+        }
+        
         if (this.scheduler != null && !this.scheduler.isShutdown()) {
             System.out.println("[GUIChess] Shutting down GameManager scheduler...");
             this.scheduler.shutdown();
@@ -236,14 +195,10 @@ public class GameManager {
     /**
      * Creates a new chess game between two players with standard configuration.
      * 
-     * This is a convenience method that creates a game with player1 as white,
-     * player2 as black, no side randomization, and no hints allowed.
-     * 
      * @param player1 the player who will play as white pieces
      * @param player2 the player who will play as black pieces
      * @param timeControl the time control settings for the game
      * @return the created ChessGame instance, or null if either player is busy
-     * @see #createGame(ServerPlayer, ServerPlayer, TimeControl, boolean, int)
      */
     public ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl) {
         return createGame(player1, player2, timeControl, false, 0);
@@ -257,12 +212,8 @@ public class GameManager {
     /**
      * Creates a new chess game between a player and an AI bot.
      * 
-     * This method creates a single-player game where the human player competes
-     * against an AI opponent with the specified ELO rating. The bot's difficulty
-     * is determined by the ELO parameter.
-     * 
      * @param player the human player participating in the game
-     * @param playerColor the color (WHITE or BLACK) the human player will play as
+     * @param playerColor the color the human player will play as
      * @param timeControl the time control settings for the game
      * @param botElo the ELO rating of the bot opponent (affects difficulty)
      * @param hintsAllowed the number of hints the player is allowed to use
@@ -316,23 +267,8 @@ public class GameManager {
     }
     
     /**
-     * Creates a new chess game between two players with full configuration options.
-     * 
-     * This is the core game creation method that handles all game setup including:
-     * <ul>
-     *   <li>Side assignment (with optional randomization)</li>
-     *   <li>GUI initialization for both players</li>
-     *   <li>Spectator system setup</li>
-     *   <li>Player inventory preservation</li>
-     *   <li>Time warning system initialization</li>
-     * </ul>
-     * 
-     * @param player1 the first player (white if not randomized)
-     * @param player2 the second player (black if not randomized)
-     * @param timeControl the time control settings for the game
-     * @param randomizeSides whether to randomly assign white/black to players
-     * @param hintsAllowed the number of hints each player is allowed to use
-     * @return the created ChessGame instance with all systems initialized
+     * Creates chess game between two players.
+     * Sets up GUIs, saves inventories, assigns sides.
      */
     public ChessGame createGame(ServerPlayer player1, ServerPlayer player2, TimeControl timeControl, boolean randomizeSides, int hintsAllowed) {
         HumanPlayer humanPlayer1 = new HumanPlayer(player1);
@@ -442,21 +378,8 @@ public class GameManager {
     }
 
     /**
-     * Ends an active chess game and performs complete cleanup.
-     * 
-     * This method handles the complete game termination process including:
-     * <ul>
-     *   <li>Saving complete game history to persistent storage</li>
-     *   <li>Updating player statistics and ELO ratings</li>
-     *   <li>Removing the game from active games collection</li>
-     *   <li>Showing analysis button to players</li>
-     *   <li>Closing all player and spectator GUIs</li>
-     *   <li>Restoring player inventories to pre-game state</li>
-     *   <li>Cleaning up time warning tracking</li>
-     *   <li>Removing spectator GUI references</li>
-     * </ul>
-     * 
-     * @param gameId the unique identifier of the game to end
+     * Ends game and cleans up.
+     * Saves history, updates ELO, restores inventories.
      */
     public void endGame(UUID gameId) {
         ChessGame game = activeGames.remove(gameId);
@@ -586,21 +509,8 @@ public class GameManager {
     }
 
     /**
-     * Accepts a pending chess challenge and initiates the game.
-     * 
-     * This method handles the complete challenge acceptance process including:
-     * <ul>
-     *   <li>Validation that the challenge is still valid and not expired</li>
-     *   <li>Verification that both players are still available</li>
-     *   <li>Side assignment based on challenge preferences</li>
-     *   <li>Game creation with proper configuration</li>
-     *   <li>Bet item management if applicable</li>
-     *   <li>Notification of both players</li>
-     * </ul>
-     * 
-     * @param player the player accepting the challenge (must be the challenged player)
-     * @param challenge the challenge being accepted
-     * @return true if the challenge was successfully accepted and game created, false otherwise
+     * Accepts challenge and creates game.
+     * Validates expiry, creates game, handles betting.
      */
     public boolean acceptChallenge(ServerPlayer player, ChessChallenge challenge) {
         if (challenge == null || !challenge.challenged.equals(player) || challenge.isExpired()) {
@@ -769,16 +679,7 @@ public class GameManager {
     }
 
     /**
-     * Checks whether a player is currently busy and unavailable for new games or challenges.
-     * 
-     * A player is considered busy if they are:
-     * <ul>
-     *   <li>Currently participating in an active game</li>
-     *   <li>Have a pending challenge (either sent or received)</li>
-     * </ul>
-     * 
-     * @param player the player to check availability for
-     * @return true if the player is busy and unavailable, false if they can participate in new activities
+     * Checks if player is in game or has pending challenge.
      */
     public boolean isPlayerBusy(ServerPlayer player) {
         if (player == null) return true;

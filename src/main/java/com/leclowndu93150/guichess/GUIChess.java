@@ -1,6 +1,7 @@
 package com.leclowndu93150.guichess;
 
 import com.leclowndu93150.guichess.command.ChessCommands;
+import com.leclowndu93150.guichess.data.PlayerDataAttachment;
 import com.leclowndu93150.guichess.engine.integration.StockfishEngineManager;
 import com.leclowndu93150.guichess.events.PlayerEventHandler;
 import com.leclowndu93150.guichess.game.core.GameManager;
@@ -10,6 +11,7 @@ import net.minecraft.client.renderer.ItemModelShaper;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelBakery;
 import net.minecraft.client.resources.model.UnbakedModel;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.config.ServerResourcePackConfigurationTask;
 import net.minecraft.world.item.component.CustomModelData;
@@ -17,6 +19,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.client.model.generators.ItemModelBuilder;
 import net.neoforged.neoforge.client.model.generators.ItemModelProvider;
 import net.neoforged.neoforge.common.NeoForge;
@@ -28,40 +31,21 @@ import org.slf4j.Logger;
 
 import java.util.UUID;
 
-/**
- * Main mod class for GUIChess - a comprehensive chess implementation for Minecraft.
- * 
- * <p>Provides a complete chess gaming experience including:
- * <ul>
- * <li>Player vs Player games with ELO rating system</li>
- * <li>Player vs AI games with configurable difficulty levels</li>
- * <li>Real-time spectator system</li>
- * <li>Post-game analysis with Stockfish integration</li>
- * <li>Challenge system with optional betting</li>
- * <li>Statistics tracking and match history</li>
- * </ul>
- * 
- * @author GUIChess
- * @since 1.0
- */
+
 @Mod(GUIChess.MODID)
 public class GUIChess {
 
     public static final String MODID = "guichess";
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    /**
-     * Initializes the GUIChess mod and registers event handlers.
-     * 
-     * @param modEventBus the mod event bus
-     * @param modContainer the mod container
-     */
     public GUIChess(IEventBus modEventBus, ModContainer modContainer) {
+        PlayerDataAttachment.ATTACHMENT_TYPES.register(modEventBus);
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(PlayerEventHandler.class);
+        //if(FMLLoader.getDist().isDedicatedServer()) modEventBus.addListener(this::registerConfigurationTasks);
+        modEventBus.addListener(this::registerConfigurationTasks);
     }
 
-    @SubscribeEvent
     public void registerConfigurationTasks(RegisterConfigurationTasksEvent event) {
         event.register(new ServerResourcePackConfigurationTask(
                 new MinecraftServer.ServerResourcePackInfo(
@@ -69,12 +53,12 @@ public class GUIChess {
                         "https://github.com/Leclowndu93150/leclowndu93150.github.io/raw/refs/heads/main/serversidesummer%20assets2.zip",
                         "c5b297c14bff87f3b7bbef7a9ded8c3be1562cdf",
                         true,
-                        null
+                        Component.literal("This server requires the GUI Chess resource pack to be installed.")
                 )));
     }
 
     /**
-     * Handles server startup - initializes the game manager and chess engine.
+     * Initializes GameManager and Stockfish on server start.
      */
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
@@ -92,7 +76,7 @@ public class GUIChess {
     }
 
     /**
-     * Handles server shutdown - cleans up the game manager and chess engine.
+     * Shuts down GameManager and Stockfish.
      */
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
@@ -101,9 +85,6 @@ public class GUIChess {
         LOGGER.info("GUIChess shutdown complete");
     }
 
-    /**
-     * Registers chess commands when the server starts.
-     */
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         ChessCommands.registerCommands(event);
@@ -120,5 +101,7 @@ public class GUIChess {
 //    Add an item in the bottom corner of the inventory, it will have z coordinates, so that it loads a gui texture (on top of the actual screen)
 //    All of the other items should load on top of that gui item. (Everything handled in datagen)
 //
-//    If wanting to be fancy we can add actual number textures. From 0 to 9
+//    If wanting to be fancy we can add actual number textures. From 0 to 9 and A to F
 }
+
+//Summary of the mod:

@@ -11,6 +11,9 @@ import net.neoforged.neoforge.data.event.GatherDataEvent;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Registers data generators for chess item models and textures.
+ */
 @EventBusSubscriber(modid = GUIChess.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class DataGenerators {
 
