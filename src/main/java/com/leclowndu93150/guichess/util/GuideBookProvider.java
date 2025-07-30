@@ -14,9 +14,6 @@ import java.util.List;
  */
 public class GuideBookProvider {
 
-    /**
-     * Creates guide book with 10 pages of chess help.
-     */
     public static ItemStack createGuideBook() {
         ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
         
@@ -24,124 +21,144 @@ public class GuideBookProvider {
             // Page 1: Welcome
             Filterable.passThrough(Component.literal(
                 "§l§nWelcome to GUIChess!§r\n\n" +
-                "Complete chess system in Minecraft!\n\n" +
+                "Complete chess in Minecraft!\n\n" +
                 "§lQuick Start:§r\n" +
                 "• §a/chess board§r - Practice\n" +
                 "• §a/chess bot§r - vs AI\n" +
-                "• §a/chess challenge§r - vs Players\n" +
-                "• §a/chess stats§r - Your stats\n" +
-                "• §a/chess leaderboard§r - Top players"
+                "• §a/chess challenge§r - vs Players"
             )),
             
-            // Page 2: Basic Commands
+            // Page 2: Essential Commands
             Filterable.passThrough(Component.literal(
-                "§l§nCommands§r\n\n" +
-                "§a/chess board§r\nPractice mode\n\n" +
-                "§a/chess challenge§r\nChallenge players\n\n" +
-                "§a/chess bot [elo]§r\nPlay AI (500-3000)\n\n" +
-                "§a/chess spectate§r\nWatch games\n\n" +
-                "§a/chess resign§r\nGive up"
+                "§l§nEssential Commands§r\n\n" +
+                "§a/chess play <player>§r\nChallenge someone\n\n" +
+                "§a/chess accept§r\nAccept challenge\n\n" +
+                "§a/chess bot [elo]§r\nPlay AI (500-3000)"
             )),
             
-            // Page 3: Time Controls
+            // Page 3: Game Commands
+            Filterable.passThrough(Component.literal(
+                "§l§nGame Commands§r\n\n" +
+                "§a/chess resign§r\nGive up current game\n\n" +
+                "§a/chess draw§r\nOffer a draw\n\n" +
+                "§a/chess spectate§r\nWatch active games"
+            )),
+            
+            // Page 4: Stats & History
+            Filterable.passThrough(Component.literal(
+                "§l§nStats & History§r\n\n" +
+                "§a/chess stats§r\nYour game statistics\n\n" +
+                "§a/chess leaderboard§r\nTop 10 players\n\n" +
+                "§a/chess history§r\nRecent games"
+            )),
+            
+            // Page 5: Analysis Tools
+            Filterable.passThrough(Component.literal(
+                "§l§nAnalysis Tools§r\n\n" +
+                "§a/chess analyze§r\nReview last game\n\n" +
+                "§a/chess hint§r\nGet move suggestion\n\n" +
+                "§a/chess fen§r\nPosition notation"
+            )),
+            
+            // Page 6: How to Play
+            Filterable.passThrough(Component.literal(
+                "§l§nControls§r\n\n" +
+                "§lLeft-click:§r\n" +
+                "• Select piece\n" +
+                "• Make move\n\n" +
+                "§lRight-click:§r\n" +
+                "• Show valid moves"
+            )),
+            
+            // Page 7: Board Colors
+            Filterable.passThrough(Component.literal(
+                "§l§nBoard Colors§r\n\n" +
+                "§aGreen squares:§r\nValid moves\n\n" +
+                "§cRed squares:§r\nCapture moves\n\n" +
+                "§6Gold outline:§r\nKing in check"
+            )),
+            
+            // Page 8: Time Controls
             Filterable.passThrough(Component.literal(
                 "§l§nTime Controls§r\n\n" +
-                "§6Bullet:§r 1+0, 2+1\nVery fast games\n\n" +
-                "§eBlitz:§r 3+0, 5+0, 3+2, 5+3\nFast games\n\n" +
-                "§aRapid:§r 10+0, 15+10, 30+0\nMedium games\n\n" +
-                "§bClassical:§r 60+0\nSlow, thoughtful games"
+                "§6Bullet:§r 1+0, 2+1\n§eBlitz:§r 3+0, 5+0, 5+3\n§aRapid:§r 10+0, 15+10\n§bClassical:§r 60+0\n\n" +
+                "Format: Minutes+Increment"
             )),
             
-            // Page 4: Playing Chess
-            Filterable.passThrough(Component.literal(
-                "§l§nHow to Play§r\n\n" +
-                "§lControls:§r\n" +
-                "• Left-click: Select piece\n" +
-                "• Left-click: Move\n" +
-                "• Right-click: Show moves\n\n" +
-                "§lColors:§r\n" +
-                "• §aGreen§r: Valid moves\n" +
-                "• §cRed§r: Captures\n" +
-                "• §6Gold§r: In check"
-            )),
-            
-            // Page 5: Betting System
-            Filterable.passThrough(Component.literal(
-                "§l§nBetting System§r\n\n" +
-                "§lHow it works:§r\n" +
-                "• Wager items on games\n" +
-                "• Winner takes all\n" +
-                "• Draws split items\n" +
-                "• Items returned if expired\n\n" +
-                "§lSafety:§r\n" +
-                "Your inventory is always\nprotected during games!"
-            )),
-            
-            // Page 6: Bot Games
+            // Page 9: Bot Games
             Filterable.passThrough(Component.literal(
                 "§l§nBot Games§r\n\n" +
-                "§a/chess bot§r\nMatches your ELO\n\n" +
-                "§a/chess bot 1500§r\nSpecific difficulty\n\n" +
-                "§a/chess bvb 1200 1800§r\nWatch bot vs bot\n\n" +
-                "§a/chess hint§r\nGet move suggestions"
+                "§a/chess bot§r\nAuto-matched difficulty\n\n" +
+                "§a/chess bot 1500§r\nSpecific ELO level\n\n" +
+                "§a/chess bvb 1200 1800§r\nWatch bots play"
             )),
             
-            // Page 7: ELO System
+            // Page 10: ELO System
             Filterable.passThrough(Component.literal(
                 "§l§nELO Rating§r\n\n" +
-                "§lHow it works:§r\n" +
                 "• Start at 1200\n" +
-                "• Gain points for wins\n" +
-                "• Lose points for losses\n" +
-                "• Small changes for draws\n\n" +
-                "§a/chess leaderboard§r\nSee top 10 players!"
+                "• Win: gain points\n" +
+                "• Lose: lose points\n" +
+                "• Draw: small change\n\n" +
+                "Climb the leaderboard!"
             )),
             
-            // Page 8: Game Analysis
+            // Page 11: Win Conditions
             Filterable.passThrough(Component.literal(
-                "§l§nGame Analysis§r\n\n" +
-                "§a/chess history§r\nView recent games\n\n" +
-                "§a/chess analyze§r\nReview last game\n\n" +
-                "§a/chess fen§r\nShow position code\n\n" +
-                "Perfect for learning!"
-            )),
-            
-            // Page 9: Win Conditions
-            Filterable.passThrough(Component.literal(
-                "§l§nWin/Draw/Lose§r\n\n" +
+                "§l§nWin Conditions§r\n\n" +
                 "§lWin by:§r\n" +
                 "• Checkmate\n" +
-                "• Timeout\n" +
-                "• Resignation\n\n" +
-                "§lDraw by:§r\n" +
+                "• Time runs out\n" +
+                "• Opponent resigns"
+            )),
+            
+            // Page 12: Draw Conditions
+            Filterable.passThrough(Component.literal(
+                "§l§nDraw Conditions§r\n\n" +
                 "• Stalemate\n" +
                 "• Insufficient material\n" +
                 "• 50-move rule\n" +
-                "• Agreement"
+                "• Threefold repetition\n" +
+                "• Mutual agreement"
             )),
             
-            // Page 10: Tips
+            // Page 13: Chess Tips
             Filterable.passThrough(Component.literal(
                 "§l§nChess Tips§r\n\n" +
-                "§lBasics:§r\n" +
-                "• Control center squares\n" +
-                "• Develop pieces early\n" +
-                "• Castle for safety\n\n" +
-                "§lImprove:§r\n" +
-                "• Practice daily\n" +
-                "• Analyze games\n" +
-                "• Use hints\n\n" +
+                "§lOpening:§r\n" +
+                "• Control center\n" +
+                "• Develop pieces\n" +
+                "• Castle early\n\n" +
+                "§lTactics:§r Look for forks!"
+            )),
+            
+            // Page 14: Improvement
+            Filterable.passThrough(Component.literal(
+                "§l§nGet Better§r\n\n" +
+                "• Play daily\n" +
+                "• Analyze your games\n" +
+                "• Use hints when stuck\n" +
+                "• Watch bot games\n\n" +
                 "§aGood luck!§r"
+            )),
+            
+            // Page 15: Advanced Features
+            Filterable.passThrough(Component.literal(
+                "§l§nAdvanced§r\n\n" +
+                "§a/chess fen <notation>§r\nLoad custom position\n\n" +
+                "§a/chess spectate <player>§r\nWatch specific player\n\n" +
+                "Perfect for learning!"
             ))
         );
         
         WrittenBookContent bookContent = new WrittenBookContent(
-            Filterable.passThrough("GUIChess Player Guide"),
+            Filterable.passThrough("Inventory Chess Player Guide"),
             "Leclowndu93150",
             0,
             pages,
             true
         );
+        
         
         book.set(DataComponents.WRITTEN_BOOK_CONTENT, bookContent);
         return book;

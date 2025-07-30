@@ -38,7 +38,6 @@ public class MatchAnalysisGUI extends SimpleGui {
     private boolean isAnalyzing = false;
     private CompletableFuture<Void> analysisTask;
 
-    // Analysis cache
     private final List<String> moveEvaluations = new ArrayList<>();
     private final List<String> bestMoves = new ArrayList<>();
     private final List<Integer> centipawnLosses = new ArrayList<>();
@@ -205,16 +204,14 @@ public class MatchAnalysisGUI extends SimpleGui {
             return;
         }
         
-        // Brilliant moves: significant improvement or tactical excellence
+        // Brilliant moves: significant improvement or tactical genius
         if (centipawnLoss < -25 || 
             (move.wasCapture && centipawnLoss < -10) ||
             (move.wasPromotion && centipawnLoss <= 0)) {
             move.isBrilliant = true;
             return;
         }
-        
-        // Adjusted thresholds for normalized evaluation
-        // These values correspond better to win probability changes
+
         if (centipawnLoss <= 10) {
             move.isGood = true; // Best move or near-best
         } else if (centipawnLoss <= 25) {

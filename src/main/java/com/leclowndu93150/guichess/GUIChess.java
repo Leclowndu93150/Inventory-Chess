@@ -42,8 +42,9 @@ public class GUIChess {
         PlayerDataAttachment.ATTACHMENT_TYPES.register(modEventBus);
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(PlayerEventHandler.class);
-        //if(FMLLoader.getDist().isDedicatedServer()) modEventBus.addListener(this::registerConfigurationTasks);
-        modEventBus.addListener(this::registerConfigurationTasks);
+        if(FMLLoader.getDist().isDedicatedServer()) modEventBus.addListener(this::registerConfigurationTasks);
+        //bricks the world loading if registered on the client
+        //modEventBus.addListener(this::registerConfigurationTasks);
     }
 
     public void registerConfigurationTasks(RegisterConfigurationTasksEvent event) {
@@ -53,7 +54,7 @@ public class GUIChess {
                         "https://github.com/Leclowndu93150/leclowndu93150.github.io/raw/refs/heads/main/serversidesummer%20assets2.zip",
                         "c5b297c14bff87f3b7bbef7a9ded8c3be1562cdf",
                         true,
-                        Component.literal("This server requires the GUI Chess resource pack to be installed.")
+                        Component.literal("This server requires the Inventory Chess resource pack to be installed.")
                 )));
     }
 
@@ -82,13 +83,11 @@ public class GUIChess {
     public void onServerStopping(ServerStoppingEvent event) {
         GameManager.getInstance().shutdown();
         StockfishEngineManager.getInstance().shutdown();
-        LOGGER.info("GUIChess shutdown complete");
     }
 
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         ChessCommands.registerCommands(event);
-        LOGGER.info("Chess commands registered");
     }
 
 

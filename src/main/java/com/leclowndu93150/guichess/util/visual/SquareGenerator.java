@@ -10,43 +10,34 @@ import javax.imageio.ImageIO;
 
 public class SquareGenerator {
 
-    private static final Color LIGHT_SQUARE = new Color(240, 217, 181);  // Original beige/cream
-    private static final Color DARK_SQUARE = new Color(181, 136, 99);    // Original brown
+    private static final Color LIGHT_SQUARE = new Color(240, 217, 181);  // beige/cream
+    private static final Color DARK_SQUARE = new Color(181, 136, 99);    // brown
 
-    private static final Color SELECTED_OVERLAY = new Color(255, 235, 59, 100);     // Soft golden yellow
-    private static final Color LAST_MOVE_OVERLAY = new Color(255, 183, 77, 90);     // Soft orange
-    private static final Color CAPTURE_OVERLAY = new Color(244, 67, 54, 90);        // Soft red
-    private static final Color CHECK_OVERLAY = new Color(198, 40, 40, 120);         // Deep red
+    private static final Color SELECTED_OVERLAY = new Color(255, 235, 59, 100);     // soft golden yellow
+    private static final Color LAST_MOVE_OVERLAY = new Color(255, 183, 77, 90);     // soft orange
+    private static final Color CAPTURE_OVERLAY = new Color(244, 67, 54, 90);        // soft red
+    private static final Color CHECK_OVERLAY = new Color(198, 40, 40, 120);         // deep red
 
     public static void main(String[] args) throws IOException {
         String basePath = "src/main/resources/assets/guichess/textures/item/";
 
-        // Create directories
         new File(basePath + "board/").mkdirs();
         new File(basePath + "chess/").mkdirs();
         new File(basePath + "pieces_overlay/").mkdirs();
 
         System.out.println("Generating chess textures...");
 
-        // Generate basic board squares
         generateBasicSquares(basePath + "board/");
 
-        // Generate piece overlay backgrounds for all chess pieces
         generatePieceOverlays(basePath + "pieces_overlay/");
 
-        System.out.println("✓ Generated all chess textures:");
-        System.out.println("  - Basic board squares");
-        System.out.println("  - Special highlighting squares");
-        System.out.println("  - " + (ChessPiece.values().length * 6) + " piece overlay variations");
-        System.out.println("  - Each piece now has: normal_light, normal_dark, selected_light, selected_dark, capture_light, capture_dark backgrounds");
+        System.out.println("Chess textures generated successfully!");
     }
 
     private static void generateBasicSquares(String boardPath) throws IOException {
-        // Basic squares
         createSquare(boardPath + "light_square.png", LIGHT_SQUARE);
         createSquare(boardPath + "dark_square.png", DARK_SQUARE);
 
-        // Special highlighting squares
         createHighlightedSquare(boardPath + "selected_square.png", LIGHT_SQUARE, SELECTED_OVERLAY);
         createHighlightedSquare(boardPath + "last_move_from.png", LIGHT_SQUARE, LAST_MOVE_OVERLAY);
         createHighlightedSquare(boardPath + "last_move_to.png", LIGHT_SQUARE, LAST_MOVE_OVERLAY);
